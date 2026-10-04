@@ -56,7 +56,7 @@ clients:
   "mcpServers": {
     "encarapi": {
       "command": "npx",
-      "args": ["-y", "encarapi-mcp"],
+      "args": ["-y", "github:ThatMojo/encarapi-mcp"],
       "env": {
         "ENCARAPI_KEY": "YOUR_ENCARAPI_KEY"
       }
@@ -68,7 +68,7 @@ clients:
 Claude Code:
 
 ```bash
-claude mcp add encarapi -e ENCARAPI_KEY=YOUR_ENCARAPI_KEY -- npx -y encarapi-mcp
+claude mcp add encarapi -e ENCARAPI_KEY=YOUR_ENCARAPI_KEY -- npx -y github:ThatMojo/encarapi-mcp
 ```
 
 Optional: `CHINACARAPI_KEY` for a separate ChinaCarAPI key.
