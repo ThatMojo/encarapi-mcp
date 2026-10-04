@@ -69,7 +69,16 @@ const readOnly = { readOnlyHint: true, openWorldHint: true };
  * also Chinese data if it has the China add-on), `chinaKey` an optional separate
  * ChinaCarAPI key.
  */
-export function createServer({ apiKey, chinaKey, fetchImpl } = {}) {
+// Every API call carries "encarapi-mcp/<version> (<transport>)" as User-Agent,
+// so MCP usage can be told apart from other clients on the API side.
+function withUserAgent(fetchImpl, transport) {
+  const base = fetchImpl || globalThis.fetch;
+  const ua = `encarapi-mcp/${VERSION} (${transport})`;
+  return (url, init = {}) => base(url, { ...init, headers: { ...(init.headers || {}), "User-Agent": ua } });
+}
+
+export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio" } = {}) {
+  fetchImpl = withUserAgent(fetchImpl, transport);
   const server = new McpServer(
     { name: "encarapi", title: "EnCarAPI - Korean & Chinese used car data", version: VERSION },
     {

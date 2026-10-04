@@ -78,7 +78,7 @@ export function createHandler({ env = process.env, fetchImpl, now } = {}) {
       return send(res, 400, { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null });
     }
 
-    const server = createServer({ apiKey, chinaKey, fetchImpl });
+    const server = createServer({ apiKey, chinaKey, fetchImpl, transport: "hosted" });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
       transport.close();
