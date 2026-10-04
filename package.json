@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.0",
-    "encarapi": "https://github.com/ThatMojo/encarapi-node/archive/refs/heads/main.tar.gz",
+    "encarapi": "^1.0.0",
     "zod": "^4.1.0"
   }
 }
