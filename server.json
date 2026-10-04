@@ -3,7 +3,7 @@
   "name": "io.github.ThatMojo/encarapi-mcp",
   "title": "EnCarAPI - Korean & Chinese used cars",
   "description": "Live used car listings from South Korea (Encar, KB Chachacha, K Car) and China (Dongchedi, Che168).",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "websiteUrl": "https://encarapi.com",
   "repository": {
     "url": "https://github.com/ThatMojo/encarapi-mcp",
