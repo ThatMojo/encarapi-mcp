@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.thatmojo/encarapi-mcp",
+  "title": "EnCarAPI - Korean & Chinese used cars",
+  "description": "Live used car listings from South Korea (Encar, KB Chachacha, K Car) and China (Dongchedi, Che168).",
+  "version": "1.0.0",
+  "websiteUrl": "https://encarapi.com",
+  "repository": { "url": "https://github.com/ThatMojo/encarapi-mcp", "source": "github" },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "encarapi-mcp",
+      "version": "1.0.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        { "name": "ENCARAPI_KEY", "description": "EnCarAPI key (https://encarapi.com)", "isRequired": true, "isSecret": true },
+        { "name": "CHINACARAPI_KEY", "description": "Optional separate ChinaCarAPI key", "isRequired": false, "isSecret": true }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.encarapi.com/mcp",
+      "headers": [
+        { "name": "Authorization", "description": "Bearer <your EnCarAPI key>", "isRequired": true, "isSecret": true }
+      ]
+    }
+  ]
+}

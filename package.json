@@ -1,0 +1,54 @@
+{
+  "name": "encarapi-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for EnCarAPI: live Korean (Encar, KB Chachacha, K Car) and Chinese (Dongchedi, Che168) used car listings for Claude, Cursor and other AI assistants.",
+  "type": "module",
+  "main": "src/server.js",
+  "bin": {
+    "encarapi-mcp": "src/stdio.js"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "start": "node src/stdio.js",
+    "start:http": "node src/http.js",
+    "test": "node test/offline.test.js"
+  },
+  "mcpName": "io.github.thatmojo/encarapi-mcp",
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "mcp server",
+    "encar",
+    "encar api",
+    "kbchacha",
+    "kcar",
+    "korean car api",
+    "china car api",
+    "che168",
+    "dongchedi",
+    "used cars",
+    "car export",
+    "claude",
+    "cursor"
+  ],
+  "homepage": "https://encarapi.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ThatMojo/encarapi-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ThatMojo/encarapi-mcp/issues"
+  },
+  "author": "EnCarAPI (https://encarapi.com)",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "encarapi": "^1.0.0",
+    "zod": "^4.1.0"
+  }
+}
