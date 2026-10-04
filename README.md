@@ -28,7 +28,32 @@ All tools are read-only.
 
 ## Option 1: hosted (no install)
 
-Add this URL as a remote MCP server and send your key as a Bearer token:
+Add this URL as a remote MCP server:
+
+```
+https://mcp.encarapi.com/mcp
+```
+
+In clients with OAuth support the URL is all you need. On first use a browser window opens,
+you paste your EnCarAPI key once, and the client is connected:
+
+- **Claude** (claude.ai, desktop, mobile): Settings - Connectors - Add custom connector, paste the URL
+- **ChatGPT** (developer mode): Settings - Connectors - create a connector with the URL
+- **Cursor**: `{"mcpServers": {"encarapi": {"url": "https://mcp.encarapi.com/mcp"}}}` in `.cursor/mcp.json`
+- **VS Code**: "MCP: Add Server" - HTTP - paste the URL
+- **Claude Code**:
+
+```bash
+claude mcp add --transport http encarapi https://mcp.encarapi.com/mcp
+```
+
+The key is checked once and is not stored on the server: it is encrypted into the token
+your client receives. To disconnect, remove the server in your client; to cut off access
+everywhere, rotate your key at [encarapi.com](https://encarapi.com).
+
+### Alternative: send the key yourself
+
+Clients without OAuth support, scripts and gateways can send the key directly:
 
 ```
 https://mcp.encarapi.com/mcp
@@ -42,9 +67,10 @@ claude mcp add --transport http encarapi https://mcp.encarapi.com/mcp \
   --header "Authorization: Bearer YOUR_ENCARAPI_KEY"
 ```
 
-Clients that only accept a URL can use `https://mcp.encarapi.com/mcp?key=YOUR_ENCARAPI_KEY`
-(the Bearer header is preferred, since URLs can end up in logs). A separate ChinaCarAPI key
-goes into the `x-china-key` header.
+The `x-api-key: YOUR_ENCARAPI_KEY` header works as well. Clients that only accept a URL and
+have no OAuth support can use `https://mcp.encarapi.com/mcp?key=YOUR_ENCARAPI_KEY` (a header
+is preferred, since URLs can end up in logs). A separate ChinaCarAPI key goes into the
+`x-china-key` header, or into the second field of the browser form.
 
 ## Option 2: local (npx)
 
@@ -87,6 +113,29 @@ docker run -p 3000:3000 encarapi-mcp     # POST /mcp, GET /health
 ```
 
 Stateless: every request carries its own key, nothing is stored.
+
+To enable the OAuth flow ("connect by URL only"), set two environment variables:
+
+| Variable | Meaning |
+|---|---|
+| `MCP_OAUTH_SECRET` | At least 32 random characters, e.g. `openssl rand -base64 48`. Enables OAuth; without it the server only accepts keys sent by the client. |
+| `MCP_PUBLIC_URL` | Public origin of the server, e.g. `https://mcp.example.com` (default `https://mcp.encarapi.com`). Tokens are bound to `<MCP_PUBLIC_URL>/mcp`. |
+
+```bash
+docker run -p 3000:3000 -e MCP_OAUTH_SECRET="$(openssl rand -base64 48)" \
+  -e MCP_PUBLIC_URL=https://mcp.example.com encarapi-mcp
+```
+
+This adds `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`,
+`/register`, `/authorize` and `/token` (OAuth 2.1 with PKCE, dynamic client registration).
+There is still no database: client ids, authorization codes and tokens are encrypted,
+self-contained values (AES-256-GCM) that carry the key. Consequences:
+
+- Changing `MCP_OAUTH_SECRET` signs out all OAuth clients (they reconnect through the browser).
+- Access tokens last 1 hour, refresh tokens 90 days and are replaced on every use.
+- Single use of authorization codes and of replaced refresh tokens is tracked in memory, so
+  it is best-effort: it does not survive a restart and is not shared between instances.
+- A single token cannot be revoked on the server. Rotating the EnCarAPI key cuts off all access.
 
 ## Links
 

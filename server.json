@@ -3,7 +3,7 @@
   "name": "io.github.ThatMojo/encarapi-mcp",
   "title": "EnCarAPI - Korean & Chinese used cars",
   "description": "Live used car listings from South Korea (Encar, KB Chachacha, K Car) and China (Dongchedi, Che168).",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "websiteUrl": "https://encarapi.com",
   "repository": {
     "url": "https://github.com/ThatMojo/encarapi-mcp",
@@ -13,7 +13,7 @@
     {
       "registryType": "npm",
       "identifier": "encarapi-mcp",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "transport": {
         "type": "stdio"
       },
@@ -40,8 +40,8 @@
       "headers": [
         {
           "name": "Authorization",
-          "description": "Bearer <your EnCarAPI key>",
-          "isRequired": true,
+          "description": "Optional: Bearer <your EnCarAPI key>. Without it the server starts the OAuth flow (paste the key once in the browser).",
+          "isRequired": false,
           "isSecret": true
         }
       ]
