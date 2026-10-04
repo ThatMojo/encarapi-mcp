@@ -15,7 +15,7 @@
     "start:http": "node src/http.js",
     "test": "node test/offline.test.js"
   },
-  "mcpName": "io.github.thatmojo/encarapi-mcp",
+  "mcpName": "io.github.ThatMojo/encarapi-mcp",
   "keywords": [
     "mcp",
     "model context protocol",
