@@ -20,13 +20,14 @@ const fakeFetch = async (url, init = {}) => {
   if (key === "down_key") throw new Error("network down");
   const china = u.hostname === "api.chinacarapi.com";
   const valid =
-    key === "good_key" || key === "legacy_key" || (china && (key === "good_cn_key" || key === "old_cn_key"));
+    key === "good_key" || key === "legacy_key" || (china && (key === "good_cn_key" || key === "old_cn_key" || key === "busy_key"));
   if (!valid) {
     return { status: 403, ok: false, text: async () => JSON.stringify({ error: "Invalid or inactive API key." }) };
   }
   if (u.pathname === "/api/me") {
+    if (key === "busy_key") return { status: 503, ok: false, text: async () => JSON.stringify({ error: "Auth backend unavailable, retry shortly." }) };
     if (key === "old_cn_key") return { status: 404, ok: false, text: async () => JSON.stringify({ error: "Not found" }) };
-    const product = key === "good_cn_key" ? "chinacarapi" : "encarapi";
+    const product = key === "good_cn_key" ? "chinacarapi" : "encarapi-addon";
     return { status: 200, ok: true, text: async () => JSON.stringify({ product, plan: "trial" }) };
   }
   const payload = u.pathname === "/api/catalog" ? { Count: 0, total: 0, SearchResults: [], results: [] } : [];
@@ -637,7 +638,7 @@ await step("china host: a ChinaCarAPI key in the main field is detected with one
 await step("china host: an EnCarAPI key in the main field falls back to Korea", async () => {
   const before = upstream.length;
   const t = await hostConnect(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "legacy_key" }, "192.0.2.2");
-  // The fake China API accepts legacy_key as an EnCarAPI key with the add-on: /api/me says "encarapi".
+  // The fake China API accepts legacy_key as an EnCarAPI key with the add-on: /api/me says "encarapi-addon".
   assert.deepEqual(upstream.slice(before).map((r) => r.url.pathname), ["/api/me"]);
   const auth = { Authorization: `Bearer ${t.access_token}` };
   assert.equal((await callTool(CN_HOST, auth, "search_korean_cars")).isError, undefined);
@@ -655,6 +656,12 @@ await step("china host: a wrong key is tried against China, then Korea", async (
     ["api.chinacarapi.com/api/me", "api.encarapi.com/api/model-search"],
     "China first, then Korea"
   );
+});
+
+await step("china host: a 503 from /api/me is 'could not be reached', not 'rejected'", async () => {
+  const { res } = await hostSubmit(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "busy_key" }, "192.0.2.12");
+  assert.equal(res.status, 503);
+  assert.match(await res.text(), /ChinaCarAPI could not be reached\./);
 });
 
 await step("china host: API without /api/me (404) falls back to the catalog probe", async () => {

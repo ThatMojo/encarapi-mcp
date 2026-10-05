@@ -228,8 +228,8 @@ async function probeKey(slot, key, fetchImpl) {
       return fail(e);
     }
   }
-  // China: GET /api/me does not count against any request budget. 200 { product, plan };
-  // an EnCarAPI key with the China add-on reports its own product and is kept as an
+  // China: GET /api/me does not count against any request budget. 200 { product, plan, ... }
+  // with product "chinacarapi" or "encarapi-addon"; an add-on key is kept as an
   // EnCarAPI key, so the Korean tools work with it as well.
   try {
     const res = await timed(`${CHINA_API}/api/me`, { headers: { "x-api-key": key, Accept: "application/json" } });
