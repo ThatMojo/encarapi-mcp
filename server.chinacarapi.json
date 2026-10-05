@@ -1,0 +1,32 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ThatMojo/chinacarapi-mcp",
+  "title": "ChinaCarAPI - Chinese used cars",
+  "description": "Live used car listings from China (Dongchedi, Che168) in English, with inspection reports.",
+  "version": "1.2.0",
+  "websiteUrl": "https://chinacarapi.com",
+  "repository": {
+    "url": "https://github.com/ThatMojo/encarapi-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.chinacarapi.com/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Optional: Bearer <your ChinaCarAPI key>. Without it the server starts the OAuth flow (paste the key once in the browser).",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "x-china-key",
+          "description": "Optional: the ChinaCarAPI key as a separate header, when Authorization carries an EnCarAPI key.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

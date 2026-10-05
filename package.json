@@ -1,7 +1,7 @@
 {
   "name": "encarapi-mcp",
-  "version": "1.1.0",
-  "description": "MCP server for EnCarAPI: live Korean (Encar, KB Chachacha, K Car) and Chinese (Dongchedi, Che168) used car listings for Claude, Cursor and other AI assistants.",
+  "version": "1.2.0",
+  "description": "MCP server for EnCarAPI and ChinaCarAPI: live Korean (Encar, KB Chachacha, K Car) and Chinese (Dongchedi, Che168) used car listings for Claude, Cursor and other AI assistants.",
   "type": "module",
   "main": "src/server.js",
   "bin": {
@@ -26,6 +26,7 @@
     "kcar",
     "korean car api",
     "china car api",
+    "chinacarapi",
     "che168",
     "dongchedi",
     "used cars",

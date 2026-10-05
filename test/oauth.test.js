@@ -10,14 +10,24 @@ const RESOURCE = `${PUBLIC}/mcp`;
 const SECRET = "test-secret-test-secret-test-secret-0123456789";
 const REDIRECT = "https://client.example/callback";
 
+// good_key / legacy_key: EnCarAPI keys with the China add-on (accepted by both APIs).
+// good_cn_key: ChinaCarAPI key. old_cn_key: ChinaCarAPI key on an API without /api/me.
 const upstream = [];
 const fakeFetch = async (url, init = {}) => {
   const u = new URL(url);
   const key = init.headers?.["x-api-key"];
   upstream.push({ url: u, key });
   if (key === "down_key") throw new Error("network down");
-  if (key !== "good_key" && key !== "good_cn_key" && key !== "legacy_key") {
+  const china = u.hostname === "api.chinacarapi.com";
+  const valid =
+    key === "good_key" || key === "legacy_key" || (china && (key === "good_cn_key" || key === "old_cn_key"));
+  if (!valid) {
     return { status: 403, ok: false, text: async () => JSON.stringify({ error: "Invalid or inactive API key." }) };
+  }
+  if (u.pathname === "/api/me") {
+    if (key === "old_cn_key") return { status: 404, ok: false, text: async () => JSON.stringify({ error: "Not found" }) };
+    const product = key === "good_cn_key" ? "chinacarapi" : "encarapi";
+    return { status: 200, ok: true, text: async () => JSON.stringify({ product, plan: "trial" }) };
   }
   const payload = u.pathname === "/api/catalog" ? { Count: 0, total: 0, SearchResults: [], results: [] } : [];
   return { status: 200, ok: true, text: async () => JSON.stringify(payload) };
@@ -81,7 +91,7 @@ async function step(name, fn) {
 
     const ok = await mcpPost(base, { "x-api-key": "legacy_key" });
     assert.equal(ok.status, 200);
-    assert.equal((await ok.json()).result.tools.length, 10);
+    assert.equal((await ok.json()).result.tools.length, 11);
   });
   server.close();
 }
@@ -271,8 +281,11 @@ await step("wrong key shows an inline error instead of redirecting", async () =>
   const html = await res.text();
   assert.match(html, /This EnCarAPI key was not accepted\./);
   assert.doesNotMatch(html, /bad_key/, "the key is not echoed back");
-  assert.equal(upstream.length, before + 1, "exactly one upstream request");
-  assert.equal(upstream.at(-1).url.pathname, "/api/model-search");
+  assert.deepEqual(
+    upstream.slice(before).map((r) => r.url.host + r.url.pathname),
+    ["api.encarapi.com/api/model-search", "api.chinacarapi.com/api/me"],
+    "Korea first, then China, one request each"
+  );
 
   const empty = await submit({ challenge, keys: {}, ip: "198.51.100.2" });
   assert.equal(empty.res.status, 400);
@@ -348,7 +361,7 @@ await step("full flow: authorize -> code -> token -> /mcp", async () => {
 
   const list = await mcpPost(base, { Authorization: `Bearer ${tokens.access_token}` });
   assert.equal(list.status, 200);
-  assert.equal((await list.json()).result.tools.length, 10);
+  assert.equal((await list.json()).result.tools.length, 11);
 
   const call = await mcpPost(
     base,
@@ -477,5 +490,266 @@ await step("legacy key auth is unchanged with OAuth enabled", async () => {
 });
 
 server.close();
+
+// ---------------------------------------------------------------------------
+// Two public hosts in one process (MCP_PUBLIC_URLS)
+// ---------------------------------------------------------------------------
+const CN_PUBLIC = "https://mcp.chinacarapi.test";
+const CN_RESOURCE = `${CN_PUBLIC}/mcp`;
+const KR_HOST = new URL(PUBLIC).host;
+const CN_HOST = new URL(CN_PUBLIC).host;
+const multi = await listen({ MCP_OAUTH_SECRET: SECRET, MCP_PUBLIC_URLS: ` ${PUBLIC} , ${CN_PUBLIC}` });
+
+// fetch() cannot set the Host header, so these requests go through node:http.
+function hostFetch(host, path, { method = "GET", headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(multi.base + path, { method, headers: { ...headers, Host: host } }, (res) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => {
+        const text = Buffer.concat(chunks).toString("utf8");
+        resolve({
+          status: res.statusCode,
+          headers: { get: (name) => res.headers[name.toLowerCase()] ?? null },
+          text: async () => text,
+          json: async () => JSON.parse(text),
+        });
+      });
+    });
+    req.on("error", reject);
+    if (body) req.write(String(body));
+    req.end();
+  });
+}
+const hostMcp = (host, headers, body = rpc("tools/list")) =>
+  hostFetch(host, "/mcp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers },
+    body,
+  });
+const hostRegister = async (host) =>
+  (
+    await hostFetch(host, "/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ redirect_uris: [REDIRECT], client_name: "Multi", token_endpoint_auth_method: "none" }),
+    })
+  ).json();
+const hostToken = async (host, data) => {
+  const res = await hostFetch(host, "/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form(data),
+  });
+  return { res, body: await res.json() };
+};
+
+/** Full browser step on one host: GET the form, POST the keys. Returns the POST response and the PKCE pair. */
+async function hostSubmit(host, cl, resource, keys, ip) {
+  const { verifier, challenge } = pkce();
+  const q = form({ response_type: "code", client_id: cl.client_id, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: "S256", state: "s", resource });
+  const page = await hostFetch(host, `/authorize?${q}`);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  const res = await hostFetch(host, "/authorize", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "CF-Connecting-IP": ip,
+      Cookie: String(page.headers.get("set-cookie")).split(";")[0],
+    },
+    body: form({ ...hiddenFields(html), ...keys }),
+  });
+  return { res, verifier, html };
+}
+
+const cnClient = await hostRegister(CN_HOST);
+const krClient = await hostRegister(KR_HOST);
+
+/** Connects on a host and returns the token response body. */
+async function hostConnect(host, cl, resource, keys, ip) {
+  const { res, verifier } = await hostSubmit(host, cl, resource, keys, ip);
+  assert.equal(res.status, 302, await res.text());
+  const loc = new URL(res.headers.get("location"));
+  const code = loc.searchParams.get("code");
+  const { body } = await hostToken(host, { grant_type: "authorization_code", client_id: cl.client_id, code, code_verifier: verifier, redirect_uri: REDIRECT, resource });
+  assert.ok(body.access_token, JSON.stringify(body));
+  return { ...body, code, verifier, iss: loc.searchParams.get("iss") };
+}
+const callTool = async (host, headers, name, args = {}) =>
+  (await (await hostMcp(host, headers, rpc("tools/call", { name, arguments: args }))).json()).result;
+
+await step("multi-host: discovery, issuer and 401 per Host header", async () => {
+  for (const [host, origin, name] of [
+    [CN_HOST, CN_PUBLIC, "ChinaCarAPI MCP server"],
+    [`${CN_HOST}:443`, CN_PUBLIC, "ChinaCarAPI MCP server"],
+    [KR_HOST, PUBLIC, "EnCarAPI MCP server"],
+    ["unknown.example", PUBLIC, "EnCarAPI MCP server"],
+  ]) {
+    const as = await (await hostFetch(host, "/.well-known/oauth-authorization-server")).json();
+    assert.equal(as.issuer, origin + "/", host);
+    assert.equal(as.authorization_endpoint, origin + "/authorize");
+    assert.equal(as.token_endpoint, origin + "/token");
+    const prm = await (await hostFetch(host, "/.well-known/oauth-protected-resource/mcp")).json();
+    assert.equal(prm.resource, origin + "/mcp");
+    assert.deepEqual(prm.authorization_servers, [origin + "/"]);
+    assert.equal(prm.resource_name, name);
+  }
+  const cn401 = await hostMcp(CN_HOST, {});
+  assert.equal(cn401.status, 401);
+  assert.equal(cn401.headers.get("www-authenticate"), `Bearer resource_metadata="${CN_PUBLIC}/.well-known/oauth-protected-resource/mcp"`);
+  assert.match((await cn401.json()).error.message, /https:\/\/chinacarapi\.com/);
+  const kr401 = await hostMcp(KR_HOST, {});
+  assert.match((await kr401.json()).error.message, /get one at https:\/\/encarapi\.com\)/);
+});
+
+await step("multi-host: ChinaCarAPI form, EnCarAPI form unchanged", async () => {
+  const { challenge } = pkce();
+  const q = (cl, resource) => form({ response_type: "code", client_id: cl.client_id, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: "S256", resource });
+  const cn = await (await hostFetch(CN_HOST, `/authorize?${q(cnClient, CN_RESOURCE)}`)).text();
+  assert.match(cn, /<title>Connect ChinaCarAPI<\/title>/);
+  assert.match(cn, /<h1>Connect ChinaCarAPI<\/h1>/);
+  assert.match(cn, /<label for="chinacarapi_key">ChinaCarAPI key<\/label>\s*<input type="password" id="chinacarapi_key" name="chinacarapi_key"[^>]*autofocus>/);
+  assert.match(cn, /EnCarAPI key <span>\(optional\)<\/span>/);
+  assert.match(cn, /<a href="https:\/\/chinacarapi\.com\/#pricing"[^>]*>chinacarapi\.com<\/a>/);
+  assert.match(cn, /separate EnCarAPI key/);
+  assert.doesNotMatch(cn, /[–—→]/);
+  const kr = await (await hostFetch(KR_HOST, `/authorize?${q(krClient, RESOURCE)}`)).text();
+  assert.match(kr, /<title>Connect EnCarAPI<\/title>/);
+  assert.match(kr, /<label for="encarapi_key">EnCarAPI key<\/label>/);
+  assert.match(kr, /ChinaCarAPI key <span>\(optional\)<\/span>/);
+});
+
+let cnTokens;
+await step("china host: a ChinaCarAPI key in the main field is detected with one /api/me call", async () => {
+  const before = upstream.length;
+  cnTokens = await hostConnect(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "good_cn_key" }, "192.0.2.1");
+  assert.equal(cnTokens.iss, CN_PUBLIC + "/");
+  assert.deepEqual(upstream.slice(before).map((r) => r.url.host + r.url.pathname), ["api.chinacarapi.com/api/me"]);
+  const auth = { Authorization: `Bearer ${cnTokens.access_token}` };
+  const list = await (await hostMcp(CN_HOST, auth)).json();
+  assert.equal(list.result.tools[0].name, "search_chinese_cars", "China tools first on the China host");
+  assert.equal((await callTool(CN_HOST, auth, "search_chinese_cars")).isError, undefined);
+  assert.equal(upstream.at(-1).key, "good_cn_key");
+  assert.equal((await callTool(CN_HOST, auth, "search_korean_cars")).isError, true, "stored as ChinaCarAPI key");
+});
+
+await step("china host: an EnCarAPI key in the main field falls back to Korea", async () => {
+  const before = upstream.length;
+  const t = await hostConnect(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "legacy_key" }, "192.0.2.2");
+  // The fake China API accepts legacy_key as an EnCarAPI key with the add-on: /api/me says "encarapi".
+  assert.deepEqual(upstream.slice(before).map((r) => r.url.pathname), ["/api/me"]);
+  const auth = { Authorization: `Bearer ${t.access_token}` };
+  assert.equal((await callTool(CN_HOST, auth, "search_korean_cars")).isError, undefined);
+  assert.equal(upstream.at(-1).key, "legacy_key");
+  assert.equal(upstream.at(-1).url.hostname, "api.encarapi.com");
+});
+
+await step("china host: a wrong key is tried against China, then Korea", async () => {
+  const before = upstream.length;
+  const { res } = await hostSubmit(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "bad_key" }, "192.0.2.3");
+  assert.equal(res.status, 400);
+  assert.match(await res.text(), /This ChinaCarAPI key was not accepted\./);
+  assert.deepEqual(
+    upstream.slice(before).map((r) => r.url.host + r.url.pathname),
+    ["api.chinacarapi.com/api/me", "api.encarapi.com/api/model-search"],
+    "China first, then Korea"
+  );
+});
+
+await step("china host: API without /api/me (404) falls back to the catalog probe", async () => {
+  const before = upstream.length;
+  const t = await hostConnect(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "old_cn_key" }, "192.0.2.4");
+  assert.deepEqual(upstream.slice(before).map((r) => r.url.pathname), ["/api/me", "/api/catalog"]);
+  assert.equal((await callTool(CN_HOST, { Authorization: `Bearer ${t.access_token}` }, "search_chinese_cars")).isError, undefined);
+  assert.equal(upstream.at(-1).key, "old_cn_key");
+});
+
+await step("default host: a ChinaCarAPI key in the main field is detected after Korea", async () => {
+  const before = upstream.length;
+  const t = await hostConnect(KR_HOST, krClient, RESOURCE, { encarapi_key: "good_cn_key" }, "192.0.2.5");
+  assert.deepEqual(upstream.slice(before).map((r) => r.url.host + r.url.pathname), ["api.encarapi.com/api/model-search", "api.chinacarapi.com/api/me"]);
+  const auth = { Authorization: `Bearer ${t.access_token}` };
+  assert.equal((await callTool(KR_HOST, auth, "search_chinese_cars")).isError, undefined);
+  assert.equal(upstream.at(-1).key, "good_cn_key");
+  assert.equal((await callTool(KR_HOST, auth, "search_korean_cars")).isError, true);
+});
+
+await step("default host: an EnCarAPI key is checked once against Korea only (unchanged)", async () => {
+  const before = upstream.length;
+  const t = await hostConnect(KR_HOST, krClient, RESOURCE, { encarapi_key: "good_key" }, "192.0.2.6");
+  assert.deepEqual(upstream.slice(before).map((r) => r.url.pathname), ["/api/model-search"]);
+  assert.equal(t.iss, PUBLIC + "/");
+});
+
+await step("both keys: main field detected, second field for the other product", async () => {
+  const t = await hostConnect(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "good_cn_key", encarapi_key: "good_key" }, "192.0.2.7");
+  const auth = { Authorization: `Bearer ${t.access_token}` };
+  await callTool(CN_HOST, auth, "search_chinese_cars");
+  assert.equal(upstream.at(-1).key, "good_cn_key");
+  await callTool(CN_HOST, auth, "search_korean_cars");
+  assert.equal(upstream.at(-1).key, "good_key");
+
+  const kr = await hostConnect(KR_HOST, krClient, RESOURCE, { encarapi_key: "good_key", chinacarapi_key: "good_cn_key" }, "192.0.2.8");
+  const krAuth = { Authorization: `Bearer ${kr.access_token}` };
+  await callTool(KR_HOST, krAuth, "search_chinese_cars");
+  assert.equal(upstream.at(-1).key, "good_cn_key");
+  await callTool(KR_HOST, krAuth, "search_korean_cars");
+  assert.equal(upstream.at(-1).key, "good_key");
+
+  const bad = await hostSubmit(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "good_cn_key", encarapi_key: "nope" }, "192.0.2.9");
+  assert.equal(bad.res.status, 400);
+  assert.match(await bad.res.text(), /This EnCarAPI key was not accepted\./);
+});
+
+await step("tokens, codes and clients of one host are refused on the other", async () => {
+  // Access token
+  assert.equal((await hostMcp(CN_HOST, { Authorization: `Bearer ${cnTokens.access_token}` })).status, 200);
+  const cross = await hostMcp(KR_HOST, { Authorization: `Bearer ${cnTokens.access_token}` });
+  assert.equal(cross.status, 401);
+  assert.match(cross.headers.get("www-authenticate"), /error="invalid_token"/);
+  const kr = await hostConnect(KR_HOST, krClient, RESOURCE, { encarapi_key: "good_key" }, "192.0.2.10");
+  assert.equal((await hostMcp(CN_HOST, { Authorization: `Bearer ${kr.access_token}` })).status, 401);
+
+  // Refresh token (also with the client registered on the other host)
+  for (const cl of [cnClient, krClient]) {
+    const r = await hostToken(KR_HOST, { grant_type: "refresh_token", client_id: cl.client_id, refresh_token: cnTokens.refresh_token });
+    assert.equal(r.res.status, 400);
+  }
+
+  // Authorization code redeemed at the other host's token endpoint, without a resource parameter
+  const { res, verifier } = await hostSubmit(CN_HOST, cnClient, CN_RESOURCE, { chinacarapi_key: "good_cn_key" }, "192.0.2.11");
+  const code = new URL(res.headers.get("location")).searchParams.get("code");
+  const stolen = await hostToken(KR_HOST, { grant_type: "authorization_code", client_id: cnClient.client_id, code, code_verifier: verifier, redirect_uri: REDIRECT });
+  assert.equal(stolen.res.status, 400);
+  const own = await hostToken(CN_HOST, { grant_type: "authorization_code", client_id: cnClient.client_id, code, code_verifier: verifier, redirect_uri: REDIRECT });
+  assert.equal(own.res.status, 200, "the same code still works on its own host");
+
+  // A client registered on one host is unknown on the other
+  const { challenge } = pkce();
+  const q = form({ response_type: "code", client_id: cnClient.client_id, redirect_uri: REDIRECT, code_challenge: challenge, code_challenge_method: "S256" });
+  assert.equal((await hostFetch(KR_HOST, `/authorize?${q}`)).status, 400);
+  assert.equal((await hostFetch(CN_HOST, `/authorize?${q}`)).status, 200);
+});
+
+await step("china host: a raw key counts as ChinaCarAPI key unless x-china-key is sent", async () => {
+  for (const headers of [{ Authorization: "Bearer good_cn_key" }, { "x-api-key": "good_cn_key" }]) {
+    assert.equal((await callTool(CN_HOST, headers, "search_chinese_cars")).isError, undefined);
+    assert.equal(upstream.at(-1).key, "good_cn_key");
+    assert.equal(upstream.at(-1).url.hostname, "api.chinacarapi.com");
+    assert.equal((await callTool(CN_HOST, headers, "search_korean_cars")).isError, true);
+  }
+  const both = { Authorization: "Bearer good_key", "x-china-key": "good_cn_key" };
+  await callTool(CN_HOST, both, "search_korean_cars");
+  assert.equal(upstream.at(-1).key, "good_key");
+  await callTool(CN_HOST, both, "search_chinese_cars");
+  assert.equal(upstream.at(-1).key, "good_cn_key");
+  // Default host: a raw key stays an EnCarAPI key.
+  await callTool(KR_HOST, { Authorization: "Bearer legacy_key" }, "search_korean_cars");
+  assert.equal(upstream.at(-1).key, "legacy_key");
+  assert.equal(upstream.at(-1).url.hostname, "api.encarapi.com");
+});
+
+multi.server.close();
 console.log(`encarapi-mcp oauth tests: OK (${steps} steps)`);
 process.exit(0);

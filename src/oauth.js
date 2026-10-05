@@ -32,6 +32,7 @@ import {
   InvalidTargetError,
   InvalidTokenError,
 } from "@modelcontextprotocol/sdk/server/auth/errors.js";
+import { brandFor } from "./brand.js";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
@@ -51,6 +52,7 @@ const REFRESH_REUSE_GRACE = 60;
 const KEY_CHECK_MAX = 10;
 const KEY_CHECK_WINDOW = 10 * 60;
 const KEY_CHECK_TIMEOUT_MS = 10000;
+const CHINA_API = "https://api.chinacarapi.com";
 
 const MAX_REDIRECT_URIS = 10;
 const MAX_REDIRECT_URI_LENGTH = 500;
@@ -136,7 +138,7 @@ function redirectHost(uri) {
   }
 }
 
-function renderPage({ nonce, clientName, host, hidden, error }) {
+function renderPage({ brand, nonce, clientName, host, hidden, error }) {
   const fields = Object.entries(hidden)
     .filter(([, v]) => v !== undefined && v !== null)
     .map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`)
@@ -148,7 +150,7 @@ function renderPage({ nonce, clientName, host, hidden, error }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
-<title>Connect EnCarAPI</title>
+<title>Connect ${brand.product}</title>
 <style nonce="${nonce}">
   *, *::before, *::after { box-sizing: border-box; }
   html { background: #030712; }
@@ -187,61 +189,112 @@ function renderPage({ nonce, clientName, host, hidden, error }) {
 </head>
 <body>
   <main>
-    <p class="brand">EnCarAPI</p>
-    <h1>Connect EnCarAPI</h1>
-    <p class="who"><strong>${esc(clientName)}</strong> wants to use EnCarAPI with your key. After connecting you return to <strong>${esc(host)}</strong>.</p>
+    <p class="brand">${brand.product}</p>
+    <h1>Connect ${brand.product}</h1>
+    <p class="who"><strong>${esc(clientName)}</strong> wants to use ${brand.product} with your key. After connecting you return to <strong>${esc(host)}</strong>.</p>
     ${error ? `<div class="error" role="alert"><strong>${esc(error.title)}</strong>${esc(error.text)}</div>` : ""}
     <form method="post" action="/authorize" autocomplete="off">
       ${fields}
-      <label for="encarapi_key">EnCarAPI key</label>
-      <input type="password" id="encarapi_key" name="encarapi_key" maxlength="${MAX_KEY_LENGTH}" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
-      <label for="chinacarapi_key">ChinaCarAPI key <span>(optional)</span></label>
-      <input type="password" id="chinacarapi_key" name="chinacarapi_key" maxlength="${MAX_KEY_LENGTH}" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="${brand.mainField}">${brand.product} key</label>
+      <input type="password" id="${brand.mainField}" name="${brand.mainField}" maxlength="${MAX_KEY_LENGTH}" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
+      <label for="${brand.secondField}">${brand.otherProduct} key <span>(optional)</span></label>
+      <input type="password" id="${brand.secondField}" name="${brand.secondField}" maxlength="${MAX_KEY_LENGTH}" autocomplete="off" autocapitalize="off" spellcheck="false">
       <button type="submit">Connect</button>
     </form>
-    <p class="hint">No key yet? Get one at <a href="https://encarapi.com" target="_blank" rel="noopener noreferrer">https://encarapi.com</a></p>
-    <p class="note">The second field is only needed for a separate ChinaCarAPI key. Keys are checked once and are not stored on this server: they are encrypted into the access token issued to this client.</p>
+    <p class="hint">No key yet? Get one at <a href="${brand.signupUrl}" target="_blank" rel="noopener noreferrer">${brand.signupText}</a></p>
+    <p class="note">The second field is only needed for a separate ${brand.otherProduct} key. Keys are checked once and are not stored on this server: they are encrypted into the access token issued to this client.</p>
   </main>
 </body>
 </html>`;
 }
 
+const PRODUCT = { k: "EnCarAPI", c: "ChinaCarAPI" };
+const SLOT = { korea: "k", china: "c" };
+
 /**
- * Checks the pasted keys with one cheap request each. Returns
- * { ok: true } | { ok: false, reason: "rejected" | "unavailable", product }.
+ * Checks one key against one product with a cheap request. Returns
+ * { result: "ok", slot } | { result: "rejected" | "unavailable" }. `slot` is where the
+ * key goes in the token: "k" (EnCarAPI key) or "c" (ChinaCarAPI key).
  */
-async function checkKeys({ apiKey, chinaKey }, fetchImpl) {
+async function probeKey(slot, key, fetchImpl) {
   const base = fetchImpl || fetch;
   const timed = (url, init) => base(url, { ...init, signal: AbortSignal.timeout(KEY_CHECK_TIMEOUT_MS) });
-  const probe = async (product, fn) => {
+  const fail = (e) => ({ result: e?.status === 401 || e?.status === 403 ? "rejected" : "unavailable" });
+  if (slot === "k") {
     try {
-      await fn();
-      return null;
+      await new KoreaClient(key, { fetch: timed }).modelSearch("k5", { limit: 1 });
+      return { result: "ok", slot: "k" };
     } catch (e) {
-      const rejected = e?.status === 401 || e?.status === 403;
-      return { ok: false, reason: rejected ? "rejected" : "unavailable", product };
+      return fail(e);
     }
-  };
-  if (apiKey) {
-    const bad = await probe("EnCarAPI", () => new KoreaClient(apiKey, { fetch: timed }).modelSearch("k5", { limit: 1 }));
-    if (bad) return bad;
   }
-  if (chinaKey) {
-    const bad = await probe("ChinaCarAPI", () => new ChinaClient(chinaKey, { fetch: timed }).catalog({ limit: 1 }));
-    if (bad) return bad;
+  // China: GET /api/me does not count against any request budget. 200 { product, plan };
+  // an EnCarAPI key with the China add-on reports its own product and is kept as an
+  // EnCarAPI key, so the Korean tools work with it as well.
+  try {
+    const res = await timed(`${CHINA_API}/api/me`, { headers: { "x-api-key": key, Accept: "application/json" } });
+    if (res.status === 200) {
+      let me = null;
+      try {
+        me = JSON.parse(await res.text());
+      } catch {}
+      const product = String(me?.product || "chinacarapi").toLowerCase();
+      return { result: "ok", slot: product === "chinacarapi" ? "c" : "k" };
+    }
+    if (res.status !== 404) return fail(res);
+  } catch (e) {
+    return fail(e);
   }
-  return { ok: true };
+  // Older API without /api/me.
+  try {
+    await new ChinaClient(key, { fetch: timed }).catalog({ limit: 1 });
+    return { result: "ok", slot: "c" };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+/**
+ * Checks the pasted keys. The main key is tried against the products in the
+ * brand's order (the first that accepts it wins), the optional second key against
+ * the other product. Returns { ok: true, k, c } |
+ * { ok: false, reason: "rejected" | "unavailable", product }.
+ */
+async function checkKeys({ main, second, brand }, fetchImpl) {
+  const keys = {};
+  let taken = null;
+  if (main) {
+    let unavailable = null;
+    for (const product of brand.probeOrder) {
+      const r = await probeKey(SLOT[product], main, fetchImpl);
+      if (r.result === "ok") {
+        taken = SLOT[product];
+        keys[r.slot] = main;
+        break;
+      }
+      if (r.result === "unavailable" && !unavailable) unavailable = PRODUCT[SLOT[product]];
+    }
+    if (!taken) return { ok: false, reason: unavailable ? "unavailable" : "rejected", product: unavailable || brand.product };
+  }
+  if (second) {
+    const slot = taken ? (taken === "k" ? "c" : "k") : SLOT[brand.probeOrder[1]];
+    const r = await probeKey(slot, second, fetchImpl);
+    if (r.result !== "ok") return { ok: false, reason: r.result, product: PRODUCT[slot] };
+    keys[slot] = second;
+  }
+  return { ok: true, ...keys };
 }
 
 /**
  * @param {object} o
  * @param {string} o.secret     MCP_OAUTH_SECRET (at least 32 characters)
  * @param {string} o.publicUrl  public origin, e.g. https://mcp.encarapi.com
+ * @param {object} [o.brand]    page texts and key order (src/brand.js), default from publicUrl
  * @param {Function} o.handleMcp (req, res, { apiKey, chinaKey }) for an authenticated /mcp request
  * @param {Function} [o.fetchImpl] fetch used for the key check (tests)
  * @param {Function} [o.now]    clock in ms (tests)
  */
-export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowMs = Date.now }) {
+export function createOAuth({ secret, publicUrl, brand, handleMcp, fetchImpl, now: nowMs = Date.now }) {
   if (typeof secret !== "string" || secret.length < 32) {
     throw new Error("MCP_OAUTH_SECRET must be at least 32 characters (e.g. openssl rand -base64 48)");
   }
@@ -249,6 +302,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
   if (issuerUrl.pathname !== "/" || issuerUrl.search || issuerUrl.hash) {
     throw new Error("MCP_PUBLIC_URL must be an origin without path, e.g. https://mcp.encarapi.com");
   }
+  brand = brand || brandFor(issuerUrl.href);
   const resourceUrl = new URL("/mcp", issuerUrl);
   const resource = resourceUrl.href;
   const secure = issuerUrl.protocol === "https:";
@@ -272,7 +326,8 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
   const clientsStore = {
     getClient(clientId) {
       const c = unwrap("client", CLIENT_PREFIX, clientId);
-      if (!c || !Array.isArray(c.r)) return undefined;
+      // Clients registered before 1.2.0 carry no resource and stay valid.
+      if (!c || !Array.isArray(c.r) || (c.a && c.a !== resource)) return undefined;
       return {
         client_id: clientId,
         client_id_issued_at: c.t,
@@ -311,6 +366,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
           m: method,
           s: method === "none" ? undefined : meta.client_secret,
           t: issuedAt,
+          a: resource,
         });
       return {
         ...meta,
@@ -337,7 +393,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
 
   function openCode(client, code) {
     const c = unwrap("code", CODE_PREFIX, code);
-    if (!c || c.exp <= now() || c.cid !== clientRef(client.client_id)) {
+    if (!c || c.exp <= now() || c.cid !== clientRef(client.client_id) || c.aud !== resource) {
       throw new InvalidGrantError("Invalid or expired authorization code");
     }
     return c;
@@ -381,6 +437,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
     );
     res.end(
       renderPage({
+        brand,
         nonce: styleNonce,
         clientName: client.client_name || "An MCP client",
         host: redirectHost(params.redirectUri),
@@ -431,12 +488,12 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
         });
       }
       const clean = (v) => (typeof v === "string" ? v.trim().slice(0, MAX_KEY_LENGTH) : "");
-      const apiKey = clean(body.encarapi_key);
-      const chinaKey = clean(body.chinacarapi_key);
-      if (!apiKey && !chinaKey) {
+      const main = clean(body[brand.mainField]);
+      const second = clean(body[brand.secondField]);
+      if (!main && !second) {
         return sendForm(res, client, params, {
           status: 400,
-          error: { title: "A key is required.", text: "Paste your EnCarAPI key to connect." },
+          error: { title: "A key is required.", text: `Paste your ${brand.product} key to connect.` },
         });
       }
       if (!keyCheckAllowed(clientIp(req))) {
@@ -445,7 +502,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
           error: { title: "Too many attempts.", text: "Please wait a few minutes and try again." },
         });
       }
-      const check = await checkKeys({ apiKey, chinaKey }, fetchImpl);
+      const check = await checkKeys({ main, second, brand }, fetchImpl);
       if (!check.ok) {
         return sendForm(res, client, params, {
           status: check.reason === "rejected" ? 400 : 503,
@@ -459,9 +516,10 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
       const code =
         CODE_PREFIX +
         seal("code", {
-          k: apiKey || undefined,
-          c: chinaKey || undefined,
+          k: check.k,
+          c: check.c,
           cid: clientRef(client.client_id),
+          aud: resource,
           ru: params.redirectUri,
           cc: params.codeChallenge,
           exp: now() + CODE_TTL,
@@ -529,7 +587,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
     }),
     authorization_response_iss_parameter_supported: true,
   };
-  const resourceName = "EnCarAPI MCP server";
+  const resourceName = brand.resourceName;
   const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(resourceUrl);
   const wwwAuthenticate = `Bearer resource_metadata="${resourceMetadataUrl}"`;
 
@@ -588,6 +646,7 @@ export function createOAuth({ secret, publicUrl, handleMcp, fetchImpl, now: nowM
 
   return {
     app,
+    brand,
     provider,
     resource,
     resourceMetadataUrl,

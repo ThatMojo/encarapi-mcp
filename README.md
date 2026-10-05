@@ -7,7 +7,7 @@
 
 > **An API key is required.** Get one (5-day trial) at [encarapi.com](https://encarapi.com).
 > Chinese data works with a [ChinaCarAPI](https://chinacarapi.com) key or an EnCarAPI key
-> with the China add-on.
+> with the China add-on. ChinaCarAPI customers: see [For ChinaCarAPI customers](#for-chinacarapi-customers).
 
 ## Tools
 
@@ -19,9 +19,10 @@
 | `get_korean_accident_record` | Insurance accident history and ownership changes |
 | `find_korean_models` | Model name autocomplete across brands |
 | `korean_filter_values` | Valid filter values |
-| `search_chinese_cars` | Search Chinese listings (brand, model, year, price in CNY, mileage, city, export-ready) |
+| `search_chinese_cars` | Search Chinese listings (brand, model, model year, registration year, price in CNY, mileage, city, fuel, source, export-ready) |
 | `get_chinese_car` | Full record for one Chinese listing |
 | `get_chinese_inspection` | Chinese inspection report (accident, flood, fire, EV battery) |
+| `chinese_filter_values` | Valid makes, fuels, cities and sources with listing counts |
 | `chinese_models` | Models of a brand with listing counts |
 
 All tools are read-only.
@@ -72,6 +73,46 @@ have no OAuth support can use `https://mcp.encarapi.com/mcp?key=YOUR_ENCARAPI_KE
 is preferred, since URLs can end up in logs). A separate ChinaCarAPI key goes into the
 `x-china-key` header, or into the second field of the browser form.
 
+## For ChinaCarAPI customers
+
+ChinaCarAPI has its own address:
+
+```
+https://mcp.chinacarapi.com/mcp
+```
+
+Add it as a remote MCP server exactly as above. On first use a browser window opens and you
+paste your ChinaCarAPI key once. The form detects which key it is, so an EnCarAPI key works
+there as well; customers with both keys put the EnCarAPI key into the optional second field.
+
+- **Claude** (claude.ai, desktop, mobile): Settings - Connectors - Add custom connector, paste the URL
+- **Cursor**: `{"mcpServers": {"chinacarapi": {"url": "https://mcp.chinacarapi.com/mcp"}}}` in `.cursor/mcp.json`
+- **Claude Code**:
+
+```bash
+claude mcp add --transport http chinacarapi https://mcp.chinacarapi.com/mcp
+```
+
+On this address the Chinese tools are listed first. Start with `chinese_filter_values` to
+get valid makes, fuels and cities (the `city` filter needs the exact `value` from that list).
+
+Without the browser login, send the key as a header. On mcp.chinacarapi.com a key in
+`Authorization: Bearer` or `x-api-key` counts as a ChinaCarAPI key:
+
+```bash
+claude mcp add --transport http chinacarapi https://mcp.chinacarapi.com/mcp \
+  --header "Authorization: Bearer YOUR_CHINACARAPI_KEY"
+```
+
+`x-china-key: YOUR_CHINACARAPI_KEY` works on both addresses; then `Authorization` can carry
+an EnCarAPI key for the Korean tools.
+
+Locally (npx), set `CHINACARAPI_KEY` instead of `ENCARAPI_KEY`:
+
+```bash
+claude mcp add chinacarapi -e CHINACARAPI_KEY=YOUR_CHINACARAPI_KEY -- npx -y encarapi-mcp
+```
+
 ## Option 2: local (npx)
 
 Claude Desktop (`claude_desktop_config.json`), Cursor (`.cursor/mcp.json`) and most other
@@ -120,6 +161,7 @@ To enable the OAuth flow ("connect by URL only"), set two environment variables:
 |---|---|
 | `MCP_OAUTH_SECRET` | At least 32 random characters, e.g. `openssl rand -base64 48`. Enables OAuth; without it the server only accepts keys sent by the client. |
 | `MCP_PUBLIC_URL` | Public origin of the server, e.g. `https://mcp.example.com` (default `https://mcp.encarapi.com`). Tokens are bound to `<MCP_PUBLIC_URL>/mcp`. |
+| `MCP_PUBLIC_URLS` | Optional, several public origins separated by commas, e.g. `https://mcp.encarapi.com,https://mcp.chinacarapi.com`. Replaces `MCP_PUBLIC_URL`. The `Host` header picks the origin (unknown hosts get the first one); each origin has its own issuer and branding, and its tokens are not accepted on the others. Origins whose host contains `chinacarapi.` get the ChinaCarAPI branding. |
 
 ```bash
 docker run -p 3000:3000 -e MCP_OAUTH_SECRET="$(openssl rand -base64 48)" \

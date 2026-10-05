@@ -6,9 +6,15 @@
 //      "?key=<key>" for clients that only accept a URL.
 // Optional "x-china-key" / "?china_key=" for a separate ChinaCarAPI key.
 // Nothing is stored server-side.
+//
+// One process can serve several public hosts (MCP_PUBLIC_URLS, e.g.
+// mcp.encarapi.com and mcp.chinacarapi.com). The Host header picks the OAuth
+// issuer and the branding; tokens are bound to their host's /mcp resource. On a
+// ChinaCarAPI host a raw key without x-china-key counts as a ChinaCarAPI key.
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer, VERSION } from "./server.js";
 import { createOAuth, ACCESS_TOKEN_PREFIX } from "./oauth.js";
+import { brandFor } from "./brand.js";
 
 const MAX_BODY = 1024 * 1024;
 
@@ -17,11 +23,11 @@ function bearerFrom(req) {
   return auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
 }
 
-function keysFrom(req, url) {
-  return {
-    apiKey: bearerFrom(req) || req.headers["x-api-key"] || url.searchParams.get("key") || undefined,
-    chinaKey: req.headers["x-china-key"] || url.searchParams.get("china_key") || undefined,
-  };
+function keysFrom(req, url, brand) {
+  const key = bearerFrom(req) || req.headers["x-api-key"] || url.searchParams.get("key") || undefined;
+  const chinaKey = req.headers["x-china-key"] || url.searchParams.get("china_key") || undefined;
+  if (brand.id === "china" && !chinaKey) return { apiKey: undefined, chinaKey: key };
+  return { apiKey: key, chinaKey };
 }
 
 function readJson(req) {
@@ -64,13 +70,30 @@ const MCP_PREFLIGHT = {
   "Access-Control-Max-Age": "86400",
 };
 
+/** Public origins from MCP_PUBLIC_URLS (comma-separated) or MCP_PUBLIC_URL; the first is the default. */
+export function publicUrls(env) {
+  const list = String(env.MCP_PUBLIC_URLS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length ? list : [env.MCP_PUBLIC_URL || "https://mcp.encarapi.com"];
+}
+
+// Host header without port, lower case. Traefik and Cloudflare pass the original
+// Host through, so X-Forwarded-Host is not needed (and not trusted).
+const hostOf = (req) =>
+  String(req.headers.host || "")
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, "");
+
 /**
  * Builds the HTTP request listener. `env.MCP_OAUTH_SECRET` enables the OAuth
  * endpoints; without it the server only accepts keys sent by the client.
  * `fetchImpl` and `now` are for tests.
  */
 export function createHandler({ env = process.env, fetchImpl, now } = {}) {
-  async function handleMcp(req, res, { apiKey, chinaKey }) {
+  async function handleMcp(req, res, { apiKey, chinaKey, brand }) {
     let body;
     try {
       body = await readJson(req);
@@ -78,7 +101,7 @@ export function createHandler({ env = process.env, fetchImpl, now } = {}) {
       return send(res, 400, { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null });
     }
 
-    const server = createServer({ apiKey, chinaKey, fetchImpl, transport: "hosted" });
+    const server = createServer({ apiKey, chinaKey, fetchImpl, transport: "hosted", brand: brand.id });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on("close", () => {
       transport.close();
@@ -93,18 +116,28 @@ export function createHandler({ env = process.env, fetchImpl, now } = {}) {
     }
   }
 
-  const oauth = env.MCP_OAUTH_SECRET
-    ? createOAuth({
-        secret: env.MCP_OAUTH_SECRET,
-        publicUrl: env.MCP_PUBLIC_URL || "https://mcp.encarapi.com",
-        handleMcp,
-        fetchImpl,
-        now,
-      })
-    : null;
+  // One entry per public host: { brand, oauth }. Unknown hosts get the first one.
+  const sites = new Map();
+  for (const publicUrl of publicUrls(env)) {
+    const host = new URL(publicUrl).hostname.toLowerCase();
+    const brand = brandFor(publicUrl);
+    const oauth = env.MCP_OAUTH_SECRET
+      ? createOAuth({
+          secret: env.MCP_OAUTH_SECRET,
+          publicUrl,
+          brand,
+          handleMcp: (req, res, keys) => handleMcp(req, res, { ...keys, brand }),
+          fetchImpl,
+          now,
+        })
+      : null;
+    if (!sites.has(host)) sites.set(host, { brand, oauth });
+  }
+  const fallback = sites.values().next().value;
 
   return async (req, res) => {
     const url = new URL(req.url, "http://localhost");
+    const { brand, oauth } = sites.get(hostOf(req)) || fallback;
 
     if (url.pathname === "/health") return send(res, 200, { ok: true, version: VERSION });
     if (url.pathname === "/" && req.method === "GET") {
@@ -132,19 +165,19 @@ export function createHandler({ env = process.env, fetchImpl, now } = {}) {
     if (oauth && bearerFrom(req).startsWith(ACCESS_TOKEN_PREFIX)) return oauth.app(req, res);
 
     // 2. Key sent by the client.
-    const { apiKey, chinaKey } = keysFrom(req, url);
+    const { apiKey, chinaKey } = keysFrom(req, url, brand);
     if (!apiKey && !chinaKey) {
       return send(
         res,
         401,
         {
           jsonrpc: "2.0",
-          error: { code: -32001, message: "API key required: Authorization: Bearer <key> (get one at https://encarapi.com)" },
+          error: { code: -32001, message: `API key required: Authorization: Bearer <key> (get one at ${brand.signupUrl})` },
           id: null,
         },
         oauth ? { "WWW-Authenticate": oauth.wwwAuthenticate, "Cache-Control": "no-store" } : {}
       );
     }
-    return handleMcp(req, res, { apiKey, chinaKey });
+    return handleMcp(req, res, { apiKey, chinaKey, brand });
   };
 }
