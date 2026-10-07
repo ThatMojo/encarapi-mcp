@@ -612,7 +612,7 @@ await step("multi-host: ChinaCarAPI form, EnCarAPI form unchanged", async () => 
   assert.match(cn, /<h1>Connect ChinaCarAPI<\/h1>/);
   assert.match(cn, /<label for="chinacarapi_key">ChinaCarAPI key<\/label>\s*<input type="password" id="chinacarapi_key" name="chinacarapi_key"[^>]*autofocus>/);
   assert.match(cn, /EnCarAPI key <span>\(optional\)<\/span>/);
-  assert.match(cn, /<a href="https:\/\/chinacarapi\.com\/#pricing"[^>]*>chinacarapi\.com<\/a>/);
+  assert.match(cn, /<a href="https:\/\/chinacarapi\.com\/\?utm_source=mcp(&amp;|&)utm_medium=signin#pricing"[^>]*>chinacarapi\.com<\/a>/);
   assert.match(cn, /separate EnCarAPI key/);
   assert.doesNotMatch(cn, /[–—→]/);
   const kr = await (await hostFetch(KR_HOST, `/authorize?${q(krClient, RESOURCE)}`)).text();

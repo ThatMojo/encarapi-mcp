@@ -20,7 +20,7 @@ export const BRANDS = {
     id: "china",
     product: "ChinaCarAPI",
     otherProduct: "EnCarAPI",
-    signupUrl: "https://chinacarapi.com/#pricing",
+    signupUrl: "https://chinacarapi.com/?utm_source=mcp&utm_medium=signin#pricing",
     signupText: "chinacarapi.com",
     resourceName: "ChinaCarAPI MCP server",
     mainField: "chinacarapi_key",
