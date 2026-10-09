@@ -239,7 +239,7 @@ await step("authorize page: form, client name, redirect host, security headers",
   assert.match(html, /client\.example/, "redirect host is shown");
   assert.match(html, /type="password"[^>]*name="encarapi_key"/);
   assert.match(html, /type="password"[^>]*name="chinacarapi_key"/);
-  assert.match(html, /No key yet\? Get one at <a href="https:\/\/encarapi\.com"/);
+  assert.match(html, /No key yet\? Get one at <a href="https:\/\/encarapi\.com\/\?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=signin#pricing"/);
   assert.match(html, /<form method="post" action="\/authorize"/);
   assert.doesNotMatch(html, /<script|<link|<img|src=|url\(|@import/, "no scripts, no external assets");
   assert.doesNotMatch(html, /[–—→]/, "no long dashes or arrows");
@@ -601,7 +601,7 @@ await step("multi-host: discovery, issuer and 401 per Host header", async () => 
   assert.equal(cn401.headers.get("www-authenticate"), `Bearer resource_metadata="${CN_PUBLIC}/.well-known/oauth-protected-resource/mcp"`);
   assert.match((await cn401.json()).error.message, /https:\/\/chinacarapi\.com/);
   const kr401 = await hostMcp(KR_HOST, {});
-  assert.match((await kr401.json()).error.message, /get one at https:\/\/encarapi\.com\)/);
+  assert.match((await kr401.json()).error.message, /get one at https:\/\/encarapi\.com\/\?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=signin#pricing\)/);
 });
 
 await step("multi-host: ChinaCarAPI form, EnCarAPI form unchanged", async () => {
@@ -612,7 +612,7 @@ await step("multi-host: ChinaCarAPI form, EnCarAPI form unchanged", async () => 
   assert.match(cn, /<h1>Connect ChinaCarAPI<\/h1>/);
   assert.match(cn, /<label for="chinacarapi_key">ChinaCarAPI key<\/label>\s*<input type="password" id="chinacarapi_key" name="chinacarapi_key"[^>]*autofocus>/);
   assert.match(cn, /EnCarAPI key <span>\(optional\)<\/span>/);
-  assert.match(cn, /<a href="https:\/\/chinacarapi\.com\/\?utm_source=mcp(&amp;|&)utm_medium=signin#pricing"[^>]*>chinacarapi\.com<\/a>/);
+  assert.match(cn, /<a href="https:\/\/chinacarapi\.com\/\?utm_source=mcp(&amp;|&)utm_medium=encarapi-mcp(&amp;|&)utm_content=signin#pricing"[^>]*>chinacarapi\.com<\/a>/);
   assert.match(cn, /separate EnCarAPI key/);
   assert.doesNotMatch(cn, /[–—→]/);
   const kr = await (await hostFetch(KR_HOST, `/authorize?${q(krClient, RESOURCE)}`)).text();

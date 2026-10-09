@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.2.0";
+export const VERSION = "1.2.1";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -92,7 +92,7 @@ const SERVER_INFO = {
       "Live used car listings from South Korea (Encar, KB Chachacha, K Car) and China (Dongchedi, Che168). " +
       "Korean prices are in KRW, Chinese prices in CNY with USD/EUR conversions. " +
       "Use find_korean_models or korean_filter_values to get exact names before filtering. " +
-      "Requires an API key from https://encarapi.com (China: https://chinacarapi.com).",
+      "Requires an API key from https://encarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=instructions (China: https://chinacarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=instructions).",
   },
   china: {
     info: { name: "chinacarapi", title: "ChinaCarAPI - Chinese & Korean used car data", version: VERSION },
@@ -101,7 +101,7 @@ const SERVER_INFO = {
       "Chinese prices are in CNY with USD/EUR conversions, Korean prices in KRW. " +
       "Use chinese_filter_values (makes, fuels, cities) and chinese_models to get exact values before filtering " +
       "search_chinese_cars; for Korea use find_korean_models or korean_filter_values. " +
-      "Requires an API key from https://chinacarapi.com (Korea: https://encarapi.com).",
+      "Requires an API key from https://chinacarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=instructions (Korea: https://encarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=instructions).",
   },
 };
 
@@ -119,11 +119,11 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
   const korea = apiKey ? new KoreaClient(apiKey, { fetch: fetchImpl }) : null;
   const china = chinaKey || apiKey ? new ChinaClient(chinaKey || apiKey, { fetch: fetchImpl }) : null;
   const needKorea = () => {
-    if (!korea) throw new Error("No EnCarAPI key configured (ENCARAPI_KEY). Get one at https://encarapi.com");
+    if (!korea) throw new Error("No EnCarAPI key configured (ENCARAPI_KEY). Get one at https://encarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=error");
     return korea;
   };
   const needChina = () => {
-    if (!china) throw new Error("No ChinaCarAPI key configured (CHINACARAPI_KEY). Get one at https://chinacarapi.com");
+    if (!china) throw new Error("No ChinaCarAPI key configured (CHINACARAPI_KEY). Get one at https://chinacarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=error");
     return china;
   };
   const run = (fn) => async (args) => {

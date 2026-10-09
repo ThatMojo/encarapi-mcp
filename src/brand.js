@@ -7,7 +7,7 @@ export const BRANDS = {
     id: "korea",
     product: "EnCarAPI",
     otherProduct: "ChinaCarAPI",
-    signupUrl: "https://encarapi.com",
+    signupUrl: "https://encarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=signin#pricing",
     signupText: "https://encarapi.com",
     resourceName: "EnCarAPI MCP server",
     // Form field names: the main field is auto-detected, the second one is for a
@@ -20,7 +20,7 @@ export const BRANDS = {
     id: "china",
     product: "ChinaCarAPI",
     otherProduct: "EnCarAPI",
-    signupUrl: "https://chinacarapi.com/?utm_source=mcp&utm_medium=signin#pricing",
+    signupUrl: "https://chinacarapi.com/?utm_source=mcp&utm_medium=encarapi-mcp&utm_content=signin#pricing",
     signupText: "chinacarapi.com",
     resourceName: "ChinaCarAPI MCP server",
     mainField: "chinacarapi_key",

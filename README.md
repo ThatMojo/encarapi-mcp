@@ -1,12 +1,12 @@
 # EnCarAPI MCP server: Korean and Chinese used car data for AI assistants
 
 [Model Context Protocol](https://modelcontextprotocol.io) server for
-[EnCarAPI](https://encarapi.com). Lets Claude, Cursor, ChatGPT and other MCP clients search
+[EnCarAPI](https://encarapi.com/?utm_source=readme&utm_medium=encarapi-mcp). Lets Claude, Cursor, ChatGPT and other MCP clients search
 **live used car listings from South Korea** (Encar, KB Chachacha, K Car) and **China**
 (Dongchedi, Che168), and pull full details, inspection reports and accident records.
 
-> **An API key is required.** Get one (5-day trial) at [encarapi.com](https://encarapi.com).
-> Chinese data works with a [ChinaCarAPI](https://chinacarapi.com) key or an EnCarAPI key
+> **An API key is required.** Get one (5-day trial) at [encarapi.com](https://encarapi.com/?utm_source=readme&utm_medium=encarapi-mcp).
+> Chinese data works with a [ChinaCarAPI](https://chinacarapi.com/?utm_source=readme&utm_medium=encarapi-mcp) key or an EnCarAPI key
 > with the China add-on. ChinaCarAPI customers: see [For ChinaCarAPI customers](#for-chinacarapi-customers).
 
 ## Tools
@@ -50,7 +50,7 @@ claude mcp add --transport http encarapi https://mcp.encarapi.com/mcp
 
 The key is checked once and is not stored on the server: it is encrypted into the token
 your client receives. To disconnect, remove the server in your client; to cut off access
-everywhere, rotate your key at [encarapi.com](https://encarapi.com).
+everywhere, rotate your key at [encarapi.com](https://encarapi.com/?utm_source=readme&utm_medium=encarapi-mcp).
 
 ### Alternative: send the key yourself
 
@@ -181,8 +181,8 @@ self-contained values (AES-256-GCM) that carry the key. Consequences:
 
 ## Links
 
-- EnCarAPI: https://encarapi.com
-- ChinaCarAPI: https://chinacarapi.com
+- EnCarAPI: [encarapi.com](https://encarapi.com/?utm_source=readme&utm_medium=encarapi-mcp)
+- ChinaCarAPI: [chinacarapi.com](https://chinacarapi.com/?utm_source=readme&utm_medium=encarapi-mcp)
 - SDKs: [Node.js](https://github.com/ThatMojo/encarapi-node), [Python](https://github.com/ThatMojo/encarapi-python)
 
 EnCarAPI is an independent service and not affiliated with Encar, KB Chachacha, K Car,

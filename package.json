@@ -1,6 +1,6 @@
 {
   "name": "encarapi-mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MCP server for EnCarAPI and ChinaCarAPI: live Korean (Encar, KB Chachacha, K Car) and Chinese (Dongchedi, Che168) used car listings for Claude, Cursor and other AI assistants.",
   "type": "module",
   "main": "src/server.js",
@@ -34,7 +34,7 @@
     "claude",
     "cursor"
   ],
-  "homepage": "https://encarapi.com",
+  "homepage": "https://encarapi.com/?utm_source=npm&utm_medium=encarapi-mcp",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ThatMojo/encarapi-mcp.git"
