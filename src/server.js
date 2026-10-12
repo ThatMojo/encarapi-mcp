@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.2.1";
+export const VERSION = "1.3.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
