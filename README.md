@@ -13,7 +13,7 @@
 
 | Tool | What it does |
 |---|---|
-| `search_korean_cars` | Search Korean listings (brand, model, year, price in 10,000 KRW, mileage, fuel, accident-free, source: encar / kbc / kcar / all) |
+| `search_korean_cars` | Search Korean listings (brand, model, year, price in 10,000 KRW, mileage, fuel, accident-free, seller region and city, source: encar / kbc / kcar / all) |
 | `get_korean_car` | Full detail for one listing (specs, options, photos, price history, seller) |
 | `get_korean_inspection` | Official Korean inspection report |
 | `get_korean_accident_record` | Insurance accident history and ownership changes |
