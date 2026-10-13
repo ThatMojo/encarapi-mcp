@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.3.0";
+export const VERSION = "1.4.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -176,6 +176,102 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         const res = await needKorea().catalog({ ...args, limit: args.limit || 10, lang: "en", count: true });
         return { total: res.Count, page: args.page || 1, results: (res.SearchResults || []).map(koreaItem) };
       })
+    );
+
+    server.registerTool(
+      "search_korean_trucks",
+      {
+        title: "Search Korean trucks and buses",
+        description:
+          "Search used trucks, buses and special vehicles in South Korea (Encar truck marketplace): cargo trucks " +
+          "(Porter, Bongo, Mighty, Xcient), wing bodies, dump and construction trucks, cranes, tankers, buses, campers. " +
+          "Prices are in 10,000 KRW. Needs a Business or Scale key (or a trial).",
+        inputSchema: {
+          form: z.string().optional().describe("Body type, comma = OR: cargo, wing_body, bus, dump_construction, crane, tank, camper, waste_transport, live_fish, tow_transport, tractor, trailer"),
+          manufacturer: z.string().optional().describe("Brand in English, e.g. Hyundai, Kia, Volvo"),
+          model: z.string().optional().describe("Substring of the Korean model name, e.g. 포터 (Porter), 봉고 (Bongo), 마이티 (Mighty)"),
+          min_tons: z.number().optional().describe("Minimum payload in tons"),
+          max_tons: z.number().optional().describe("Maximum payload in tons"),
+          use: z.enum(["private", "commercial", "other"]).optional().describe("Registration use"),
+          fuel: z.string().optional(),
+          transmission: z.string().optional(),
+          min_year: z.number().int().optional(),
+          max_year: z.number().int().optional(),
+          max_price: z.number().int().optional().describe("Maximum price in 10,000 KRW"),
+          max_mileage: z.number().int().optional().describe("Maximum mileage in km"),
+          region: z.string().optional().describe("Region code, e.g. gyeonggi, busan"),
+          sort: z.enum(["newest", "price_asc", "price_desc", "mileage_asc", "mileage_desc", "year_desc", "year_asc"]).optional(),
+          limit: z.number().int().min(1).max(50).optional().describe("Results per page, default 10"),
+          page: z.number().int().min(1).optional(),
+        },
+        annotations: readOnly,
+      },
+      run(async (args) => {
+        const res = await needKorea().trucks({ ...args, limit: args.limit || 10, lang: "en", count: true });
+        return {
+          total: res.Count,
+          page: args.page || 1,
+          results: (res.SearchResults || []).map((c) => ({
+            id: c.Id, make: c.Manufacturer, model: c.Model, trim: c.Badge, bodyType: c.FormEnglish || c.Form,
+            bodyDetail: c.FormDetail, payloadTons: c.CapacityTons ?? undefined, use: c.UseEnglish || c.Use,
+            year: c.Year, priceKRW: typeof c.Price === "number" ? c.Price * 10000 : undefined, mileageKm: c.Mileage,
+            fuel: c.FuelTypeEnglish || c.FuelType, transmission: c.TransmissionEnglish || c.Transmission,
+            region: c.Region || undefined, url: c.Url, photo: firstPhoto(c.Photos),
+          })),
+        };
+      })
+    );
+
+    server.registerTool(
+      "search_korean_excavators",
+      {
+        title: "Search Korean used excavators",
+        description:
+          "Search used excavators in South Korea (굴삭기나라 / direct-nara.co.kr, Korea's construction-equipment " +
+          "marketplace): crawler and wheeled excavators with maker, model, year, operating hours, " +
+          "weight class, region and price. Needs a Business or Scale key (or a trial). Export-control rules for " +
+          "construction machinery are the exporter's responsibility.",
+        inputSchema: {
+          maker: z.string().optional().describe("Maker in English, e.g. Doosan (Develon), HD Hyundai, Volvo, Kubota, Kobelco"),
+          model: z.string().optional().describe("Model or title substring, e.g. DX55, HX60"),
+          sub_type: z.enum(["crawler", "wheel"]).optional(),
+          weight_class: z.string().optional().describe("Weight class code, e.g. EXC_CR_LE_6_5 (02 class crawler), EXC_TIRE_LE_17 (06W wheeled)"),
+          min_year: z.number().int().optional(),
+          max_hours: z.number().int().optional().describe("Maximum operating hours"),
+          max_price: z.number().int().optional().describe("Maximum price in 10,000 KRW"),
+          region: z.string().optional().describe("Region code, e.g. gyeonggi"),
+          sort: z.enum(["newest", "price_asc", "price_desc", "hours_asc", "year_desc", "year_asc"]).optional(),
+          limit: z.number().int().min(1).max(50).optional().describe("Results per page, default 10"),
+          page: z.number().int().min(1).optional(),
+        },
+        annotations: readOnly,
+      },
+      run(async (args) => {
+        const res = await needKorea().equipment({ ...args, limit: args.limit || 10, count: true });
+        return {
+          total: res.Count,
+          page: args.page || 1,
+          results: (res.SearchResults || []).map((c) => ({
+            id: c.Id, title: c.Title, maker: c.MakerEnglish || c.Maker, model: c.Model || undefined, year: c.Year,
+            hours: c.Hours ?? undefined, type: c.SubType || undefined, weightClass: c.WeightClassLabel || undefined,
+            priceKRW: c.PriceKRW ?? undefined, region: c.Region || undefined, city: c.City || undefined,
+            sold: c.Sold || undefined, url: c.Url, photo: (c.Photos || [])[0],
+          })),
+        };
+      })
+    );
+
+    server.registerTool(
+      "find_korean_car_by_vin",
+      {
+        title: "Find a Korean car by VIN",
+        description:
+          "Every Encar and K Car listing of one VIN, active and removed - the listing history of one vehicle " +
+          "(relists, earlier prices). Use the returned id with get_korean_car for full details. Needs a Business or Scale key (or a trial).",
+        inputSchema: { vin: z.string().describe("17-character VIN") },
+        annotations: readOnly,
+      },
+      run(async ({ vin }) => needKorea().vehicleByVin(vin))
     );
 
     server.registerTool(
