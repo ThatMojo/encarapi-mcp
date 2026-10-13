@@ -49,7 +49,7 @@ const { tools } = await client.listTools();
 const names = tools.map((t) => t.name).sort();
 assert.deepEqual(names, [
   "chinese_filter_values", "chinese_models", "find_korean_car_by_vin", "find_korean_models", "get_chinese_car", "get_chinese_inspection", "get_korean_accident_record",
-  "get_korean_car", "get_korean_inspection", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
+  "get_korean_car", "get_korean_inspection", "get_korean_truck", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
 ]);
 assert.ok(tools.every((t) => t.annotations?.readOnlyHint), "all tools are read-only");
 
@@ -132,7 +132,7 @@ assert.match(cnClient.getInstructions(), /^Live used car listings from China/);
 assert.match(cnClient.getInstructions(), /chinese_filter_values/);
 const cnTools = (await cnClient.listTools()).tools.map((t) => t.name);
 assert.equal(cnTools[0], "search_chinese_cars");
-assert.equal(cnTools.length, 14);
+assert.equal(cnTools.length, 15);
 assert.equal(tools[0].name, "search_korean_cars");
 assert.equal(client.getServerVersion().name, "encarapi");
 

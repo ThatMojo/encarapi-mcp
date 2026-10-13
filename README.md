@@ -17,6 +17,7 @@
 | `search_korean_excavators` | Search Korean used excavators (maker, model, operating hours, weight class, region; Business/Scale key) |
 | `search_korean_trucks` | Search Korean trucks, buses and special vehicles (body type, payload in tons, use, region; Business/Scale key) |
 | `find_korean_car_by_vin` | All Encar / K Car listings of one VIN, incl. removed ones (Business/Scale key) |
+| `get_korean_truck` | Full record for one truck: detail, inspection report, cargo box, VIN and plate (Business/Scale key) |
 | `get_korean_car` | Full detail for one listing (specs, options, photos, price history, seller) |
 | `get_korean_inspection` | Official Korean inspection report |
 | `get_korean_accident_record` | Insurance accident history and ownership changes |

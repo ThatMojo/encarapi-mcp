@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.4.0";
+export const VERSION = "1.4.1";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -272,6 +272,17 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         annotations: readOnly,
       },
       run(async ({ vin }) => needKorea().vehicleByVin(vin))
+    );
+
+    server.registerTool(
+      "get_korean_truck",
+      {
+        title: "Get a Korean truck",
+        description: "Full record for one truck or bus from search_korean_trucks: detail page, official inspection report, cargo box dimensions, horse power, VIN and plate. Needs a Business or Scale key (or a trial).",
+        inputSchema: { id: z.string().describe("Truck id from search_korean_trucks") },
+        annotations: readOnly,
+      },
+      run(async ({ id }) => needKorea().truck(id, { lang: "en" }))
     );
 
     server.registerTool(
