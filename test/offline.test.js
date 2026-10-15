@@ -48,7 +48,7 @@ const client = await connect({ apiKey: "kr_key" });
 const { tools } = await client.listTools();
 const names = tools.map((t) => t.name).sort();
 assert.deepEqual(names, [
-  "chinese_filter_values", "chinese_models", "find_korean_car_by_vin", "find_korean_models", "get_chinese_car", "get_chinese_inspection", "get_korean_accident_record",
+  "chinese_filter_values", "chinese_models", "find_korean_car_by_vin", "find_korean_models", "get_chinese_car", "get_chinese_inspection", "get_chinese_specs", "get_korean_accident_record",
   "get_korean_car", "get_korean_inspection", "get_korean_truck", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
 ]);
 assert.ok(tools.every((t) => t.annotations?.readOnlyHint), "all tools are read-only");
@@ -91,6 +91,8 @@ assert.equal(calls.at(-1).searchParams.get("source"), "che168");
 await client.callTool({ name: "get_chinese_inspection", arguments: { id: "123", source: "dongchedi" } });
 assert.equal(calls.at(-1).pathname, "/api/inspection/123");
 assert.equal(calls.at(-1).searchParams.get("source"), "dongchedi");
+await client.callTool({ name: "get_chinese_specs", arguments: { trimId: 62342 } });
+assert.equal(calls.at(-1).pathname, "/api/specs/62342");
 await client.callTool({ name: "get_chinese_car", arguments: { id: "124" } });
 assert.equal(calls.at(-1).searchParams.has("source"), false);
 

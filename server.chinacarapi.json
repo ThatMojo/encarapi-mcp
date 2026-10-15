@@ -3,7 +3,7 @@
   "name": "io.github.ThatMojo/chinacarapi-mcp",
   "title": "ChinaCarAPI - Chinese used cars",
   "description": "Live used car listings from China (Dongchedi, Che168) in English, with inspection reports.",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "websiteUrl": "https://chinacarapi.com/?utm_source=mcp_registry&utm_medium=encarapi-mcp",
   "repository": {
     "url": "https://github.com/ThatMojo/encarapi-mcp",

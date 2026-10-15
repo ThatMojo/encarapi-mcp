@@ -408,6 +408,19 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
     );
 
     server.registerTool(
+      "get_chinese_specs",
+      {
+        title: "Get a Chinese trim specification sheet",
+        description:
+          "Autohome specification sheet of a Che168 trim (use trim.id from get_chinese_car): displacement in cc, power in kW and hp (also EVs), " +
+          "torque, emission standard, wheelbase, weights, tank, gears, drive type, EV battery. One sheet covers every car of that trim. Che168 only.",
+        inputSchema: { trimId: z.union([z.string(), z.number()]).describe("Autohome trim id (trim.id of a Che168 vehicle record)") },
+        annotations: readOnly,
+      },
+      run(({ trimId }) => needChina().specs(trimId))
+    );
+
+    server.registerTool(
       "chinese_filter_values",
       {
         title: "Chinese filter values",
