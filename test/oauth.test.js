@@ -92,7 +92,7 @@ async function step(name, fn) {
 
     const ok = await mcpPost(base, { "x-api-key": "legacy_key" });
     assert.equal(ok.status, 200);
-    assert.equal((await ok.json()).result.tools.length, 15);
+    assert.equal((await ok.json()).result.tools.length, 16);
   });
   server.close();
 }
@@ -362,7 +362,7 @@ await step("full flow: authorize -> code -> token -> /mcp", async () => {
 
   const list = await mcpPost(base, { Authorization: `Bearer ${tokens.access_token}` });
   assert.equal(list.status, 200);
-  assert.equal((await list.json()).result.tools.length, 15);
+  assert.equal((await list.json()).result.tools.length, 16);
 
   const call = await mcpPost(
     base,
