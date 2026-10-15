@@ -134,7 +134,7 @@ assert.match(cnClient.getInstructions(), /^Live used car listings from China/);
 assert.match(cnClient.getInstructions(), /chinese_filter_values/);
 const cnTools = (await cnClient.listTools()).tools.map((t) => t.name);
 assert.equal(cnTools[0], "search_chinese_cars");
-assert.equal(cnTools.length, 15);
+assert.equal(cnTools.length, 16);
 assert.equal(tools[0].name, "search_korean_cars");
 assert.equal(client.getServerVersion().name, "encarapi");
 
