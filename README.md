@@ -23,8 +23,9 @@
 | `get_korean_accident_record` | Insurance accident history and ownership changes |
 | `find_korean_models` | Model name autocomplete across brands |
 | `korean_filter_values` | Valid filter values |
-| `search_chinese_cars` | Search Chinese listings (brand, model, model year, registration year, price in CNY, mileage, city, fuel, source, export-ready) |
+| `search_chinese_cars` | Search Chinese listings (brand, model, model year, registration year, price in CNY, mileage, power, city, fuel, source, export-ready) |
 | `get_chinese_car` | Full record for one Chinese listing |
+| `get_chinese_car_by_url` | Full record by Che168/Dongchedi listing link (desktop, mobile or app) |
 | `get_chinese_inspection` | Chinese inspection report (accident, flood, fire, EV battery) |
 | `get_chinese_specs` | Autohome specification sheet of a Che168 trim (cc, kW, hp, torque, emission standard, weights, EV battery) |
 | `chinese_filter_values` | Valid makes, fuels, cities and sources with listing counts |

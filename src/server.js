@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.4.1";
+export const VERSION = "1.6.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -368,6 +368,8 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
           price_min: z.number().int().optional().describe("Minimum price in CNY"),
           price_max: z.number().int().optional().describe("Maximum price in CNY"),
           mileage_max: z.number().int().optional().describe("Maximum mileage in km"),
+          power_min: z.number().int().optional().describe("Minimum power in hp (cars without a known power figure are left out)"),
+          power_max: z.number().int().optional().describe("Maximum power in hp"),
           city: z.string().optional().describe("City: pass the exact 'value' of an entry in chinese_filter_values (list 'cities')"),
           fuel: z.string().optional().describe("Fuel type in English, see chinese_filter_values (list 'fuels')"),
           export_ready: z.boolean().optional().describe("Only cars that can be exported now"),
@@ -394,6 +396,17 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         annotations: readOnly,
       },
       run(({ id, source }) => needChina().vehicle(id, { source }))
+    );
+
+    server.registerTool(
+      "get_chinese_car_by_url",
+      {
+        title: "Get a Chinese car by link",
+        description: "Same full record as get_chinese_car, looked up by a Che168 or Dongchedi listing link (desktop, mobile site or app, also inside a pasted share text). Short links are not resolved.",
+        inputSchema: { url: z.string().describe("Listing link, e.g. https://m.che168.com/cardetail/index?infoid=60234085") },
+        annotations: readOnly,
+      },
+      run(({ url }) => needChina().vehicleByUrl(url))
     );
 
     server.registerTool(
