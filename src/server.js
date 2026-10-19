@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.6.0";
+export const VERSION = "1.6.1";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -45,6 +45,7 @@ const koreaItem = (c) => ({
   fuel: c.FuelTypeEnglish || c.FuelType,
   transmission: c.Transmission,
   powerPs: c.PowerPs,
+  displacementCc: c.DisplacementCc,
   color: c.Color,
   region: c.Region || undefined,
   city: c.City || undefined,
