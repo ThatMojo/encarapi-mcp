@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.6.2";
+export const VERSION = "1.6.3";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -79,6 +79,17 @@ const chinaItem = (c) => ({
 });
 
 const readOnly = { readOnlyHint: true, openWorldHint: true };
+
+// China response language. "ru" (API since 2026-10-22) translates the fixed fields,
+// city names and equipment names; make, model and trim names stay Latin.
+const chinaLang = z
+  .enum(["en", "zh", "ru"])
+  .optional()
+  .describe(
+    "Language of the returned values: en (default), zh = the original Chinese values, ru = Russian values for the fixed fields " +
+      "(fuel, transmission, drivetrain, colours, seller type, condition, vehicle class), city names and equipment names; " +
+      "make, model and trim names stay Latin"
+  );
 
 const chinaSource = z
   .enum(["dongchedi", "che168"])
@@ -386,7 +397,7 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
           export_ready: z.boolean().optional().describe("Only cars that can be exported now"),
           has_report: z.boolean().optional().describe("Only cars with an inspection report"),
           sort: z.enum(["newest", "price_asc", "price_desc", "mileage_asc", "year_desc"]).optional(),
-          lang: z.enum(["en", "zh"]).optional().describe("'zh' returns the original Chinese values; default English"),
+          lang: chinaLang,
           limit: z.number().int().min(1).max(50).optional().describe("Results per page, default 10"),
           page: z.number().int().min(1).optional(),
         },
@@ -403,10 +414,10 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
       {
         title: "Get a Chinese car",
         description: "Full record for one Chinese listing: price history, photos, seller, export status, same car on the other marketplace.",
-        inputSchema: { id: z.string().describe("Listing id from search_chinese_cars"), source: chinaSource },
+        inputSchema: { id: z.string().describe("Listing id from search_chinese_cars"), source: chinaSource, lang: chinaLang },
         annotations: readOnly,
       },
-      run(({ id, source }) => needChina().vehicle(id, { source }))
+      run(({ id, source, lang }) => needChina().vehicle(id, { source, lang }))
     );
 
     server.registerTool(
@@ -414,10 +425,10 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
       {
         title: "Get a Chinese car by link",
         description: "Same full record as get_chinese_car, looked up by a Che168 or Dongchedi listing link (desktop, mobile site or app, also inside a pasted share text). Short links are not resolved.",
-        inputSchema: { url: z.string().describe("Listing link, e.g. https://m.che168.com/cardetail/index?infoid=60234085") },
+        inputSchema: { url: z.string().describe("Listing link, e.g. https://m.che168.com/cardetail/index?infoid=60234085"), lang: chinaLang },
         annotations: readOnly,
       },
-      run(({ url }) => needChina().vehicleByUrl(url))
+      run(({ url, lang }) => needChina().vehicleByUrl(url, { lang }))
     );
 
     server.registerTool(

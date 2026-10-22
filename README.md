@@ -23,13 +23,17 @@
 | `get_korean_accident_record` | Insurance accident history and ownership changes |
 | `find_korean_models` | Model name autocomplete across brands |
 | `korean_filter_values` | Valid filter values |
-| `search_chinese_cars` | Search Chinese listings (brand, model, model year, registration year, price in CNY, mileage, power, city, fuel, source, export-ready) |
-| `get_chinese_car` | Full record for one Chinese listing |
-| `get_chinese_car_by_url` | Full record by Che168/Dongchedi listing link (desktop, mobile or app) |
+| `search_chinese_cars` | Search Chinese listings (brand, model, model year, registration year, price in CNY, mileage, power, city, fuel, source, export-ready; `lang`: en, zh or ru) |
+| `get_chinese_car` | Full record for one Chinese listing (`lang`: en, zh or ru) |
+| `get_chinese_car_by_url` | Full record by Che168/Dongchedi listing link (desktop, mobile or app; `lang`: en, zh or ru) |
 | `get_chinese_inspection` | Chinese inspection report (accident, flood, fire, EV battery) |
 | `get_chinese_specs` | Autohome specification sheet of a Che168 trim (cc, kW, hp, torque, emission standard, weights, EV battery) |
 | `chinese_filter_values` | Valid makes, fuels, cities and sources with listing counts |
 | `chinese_models` | Models of a brand with listing counts |
+
+Chinese `lang`: `zh` returns the original Chinese values, `ru` Russian values for the fixed fields (fuel,
+transmission, drivetrain, colours, seller type, condition, vehicle class), city names and equipment names;
+make, model and trim names stay Latin.
 
 All tools are read-only.
 

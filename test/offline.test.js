@@ -90,6 +90,22 @@ assert.equal(cq.get("lang"), "zh");
 assert.equal(cq.get("city"), "武汉");
 assert.equal(cq.get("source"), "che168");
 
+// lang ru (and zh) on search, detail and detail by link; the schema offers en, zh and ru
+await client.callTool({ name: "search_chinese_cars", arguments: { make: "BYD", lang: "ru" } });
+assert.equal(calls.at(-1).searchParams.get("lang"), "ru");
+await client.callTool({ name: "get_chinese_car", arguments: { id: "125", lang: "ru" } });
+assert.equal(calls.at(-1).pathname, "/api/vehicle/125");
+assert.equal(calls.at(-1).searchParams.get("lang"), "ru");
+await client.callTool({ name: "get_chinese_car_by_url", arguments: { url: "https://www.dongchedi.com/usedcar/20984385", lang: "zh" } });
+assert.equal(calls.at(-1).searchParams.get("lang"), "zh");
+for (const name of ["search_chinese_cars", "get_chinese_car", "get_chinese_car_by_url"]) {
+  const lang = tools.find((t) => t.name === name).inputSchema.properties.lang;
+  assert.deepEqual(lang.enum, ["en", "zh", "ru"], name);
+  assert.match(lang.description, /make, model and trim names stay Latin/, name);
+}
+const badLang = await client.callTool({ name: "search_chinese_cars", arguments: { lang: "de" } });
+assert.equal(badLang.isError, true, "de is Korea only");
+
 // source on detail and inspection
 await client.callTool({ name: "get_chinese_car", arguments: { id: "123", source: "che168" } });
 assert.equal(calls.at(-1).pathname, "/api/vehicle/123");
@@ -101,9 +117,11 @@ await client.callTool({ name: "get_chinese_specs", arguments: { trimId: 62342 } 
 assert.equal(calls.at(-1).pathname, "/api/specs/62342");
 await client.callTool({ name: "get_chinese_car", arguments: { id: "124" } });
 assert.equal(calls.at(-1).searchParams.has("source"), false);
+assert.equal(calls.at(-1).searchParams.has("lang"), false, "no lang unless asked");
 await client.callTool({ name: "get_chinese_car_by_url", arguments: { url: "https://m.che168.com/cardetail/index?infoid=60234085" } });
 assert.equal(calls.at(-1).pathname, "/api/vehicle/by-url");
 assert.equal(calls.at(-1).searchParams.get("url"), "https://m.che168.com/cardetail/index?infoid=60234085");
+assert.equal(calls.at(-1).searchParams.has("lang"), false);
 
 // Chinese filter values: compact JSON, optionally one list
 const en = await client.callTool({ name: "chinese_filter_values", arguments: {} });
