@@ -66,6 +66,12 @@ assert.equal(q.get("count"), "true");
 assert.equal(q.get("limit"), "10");
 assert.equal(q.get("frame_clean"), "true");
 
+// lang de: passed through, the German main fields win over the *English twins
+await client.callTool({ name: "search_korean_cars", arguments: { manufacturer: "Kia", lang: "de" } });
+assert.equal(calls.at(-1).searchParams.get("lang"), "de");
+await client.callTool({ name: "get_korean_car", arguments: { id: "42524087", lang: "ru" } });
+assert.equal(calls.at(-1).searchParams.get("lang"), "ru");
+
 // China search goes to the China host with the same key
 const cn = await client.callTool({ name: "search_chinese_cars", arguments: { make: "BYD" } });
 assert.equal(JSON.parse(cn.content[0].text).results[0].make, "BYD");

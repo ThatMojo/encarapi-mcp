@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.6.1";
+export const VERSION = "1.7.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -32,27 +32,32 @@ const firstPhoto = (photos) => {
   return typeof p === "string" ? p : p.url || p.location || p.Url || undefined;
 };
 
-// Compact, English-first view of a Korean catalog item for LLM context.
-const koreaItem = (c) => ({
-  id: c.Id,
-  source: c.Source || "encar",
-  make: c.ManufacturerEnglish || c.Manufacturer,
-  model: c.ModelEnglish || c.Model,
-  trim: c.BadgeEnglish || c.Badge,
-  year: c.Year,
-  priceKRW: typeof c.Price === "number" ? c.Price * 10000 : undefined,
-  mileageKm: c.Mileage,
-  fuel: c.FuelTypeEnglish || c.FuelType,
-  transmission: c.Transmission,
-  powerPs: c.PowerPs,
-  displacementCc: c.DisplacementCc,
-  color: c.Color,
-  region: c.Region || undefined,
-  city: c.City || undefined,
-  duplicateOf: c.IsDuplicate ? c.DuplicateOf : undefined,
-  url: c.Url,
-  photo: firstPhoto(c.Photos),
-});
+// Compact, English-first view of a Korean catalog item for LLM context. With
+// lang "ru" / "de" the API puts the Russian / German values into the main
+// fields, so those win over the *English twins.
+const koreaItem = (c, lang = "en") => {
+  const pick = (en, main) => (lang === "en" ? en || main : main ?? en);
+  return {
+    id: c.Id,
+    source: c.Source || "encar",
+    make: c.ManufacturerEnglish || c.Manufacturer,
+    model: pick(c.ModelEnglish, c.Model),
+    trim: pick(c.BadgeEnglish, c.Badge),
+    year: c.Year,
+    priceKRW: typeof c.Price === "number" ? c.Price * 10000 : undefined,
+    mileageKm: c.Mileage,
+    fuel: pick(c.FuelTypeEnglish, c.FuelType),
+    transmission: c.Transmission,
+    powerPs: c.PowerPs,
+    displacementCc: c.DisplacementCc,
+    color: c.Color,
+    region: c.Region || undefined,
+    city: c.City || undefined,
+    duplicateOf: c.IsDuplicate ? c.DuplicateOf : undefined,
+    url: c.Url,
+    photo: firstPhoto(c.Photos),
+  };
+};
 
 const chinaItem = (c) => ({
   id: c.id,
@@ -170,12 +175,14 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
           sort: z.enum(["newest", "price_asc", "price_desc", "mileage_asc", "mileage_desc", "year_desc", "year_asc"]).optional(),
           limit: z.number().int().min(1).max(50).optional().describe("Results per page, default 10"),
           page: z.number().int().min(1).optional(),
+          lang: z.enum(["en", "ru", "de"]).optional().describe("Language of the returned values (fuel, colors, regions, options; with 'de' also model and trim names): en (default), ru = Russian, de = German. Filters stay English"),
         },
         annotations: readOnly,
       },
       run(async (args) => {
-        const res = await needKorea().catalog({ ...args, limit: args.limit || 10, lang: "en", count: true });
-        return { total: res.Count, page: args.page || 1, results: (res.SearchResults || []).map(koreaItem) };
+        const lang = args.lang || "en";
+        const res = await needKorea().catalog({ ...args, limit: args.limit || 10, lang, count: true });
+        return { total: res.Count, page: args.page || 1, results: (res.SearchResults || []).map((c) => koreaItem(c, lang)) };
       })
     );
 
@@ -291,10 +298,13 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
       {
         title: "Get a Korean car",
         description: "Full details for one Korean listing: specs, options, photos, price history, seller. Id: Encar id, 'kbc:<id>' or 'kcar:<id>'.",
-        inputSchema: { id: z.string().describe("Listing id from search_korean_cars") },
+        inputSchema: {
+          id: z.string().describe("Listing id from search_korean_cars"),
+          lang: z.enum(["en", "ru", "de"]).optional().describe("Language of the spec, category and option names: en (default), ru = Russian, de = German"),
+        },
         annotations: readOnly,
       },
-      run(({ id }) => needKorea().vehicle(id, { lang: "en" }))
+      run(({ id, lang }) => needKorea().vehicle(id, { lang: lang || "en" }))
     );
 
     server.registerTool(
