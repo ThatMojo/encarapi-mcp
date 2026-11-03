@@ -3,7 +3,7 @@
 [Model Context Protocol](https://modelcontextprotocol.io) server for
 [EnCarAPI](https://encarapi.com/?utm_source=readme&utm_medium=encarapi-mcp). Lets Claude, Cursor, ChatGPT and other MCP clients search
 **live used car listings from South Korea** (Encar, KB Chachacha, K Car) and **China**
-(Dongchedi, Che168), and pull full details, inspection reports and accident records.
+(Dongchedi, Che168), and pull full details, inspection reports, Encar diagnoses and accident records.
 
 > **An API key is required.** Get one (5-day trial) at [encarapi.com](https://encarapi.com/?utm_source=readme&utm_medium=encarapi-mcp).
 > Chinese data works with a [ChinaCarAPI](https://chinacarapi.com/?utm_source=readme&utm_medium=encarapi-mcp) key or an EnCarAPI key
@@ -18,8 +18,9 @@
 | `search_korean_trucks` | Search Korean trucks, buses and special vehicles (body type, payload in tons, use, region; Business/Scale key) |
 | `find_korean_car_by_vin` | All Encar / K Car listings of one VIN, incl. removed ones (Business/Scale key) |
 | `get_korean_truck` | Full record for one truck: detail, inspection report, cargo box, VIN and plate (Business/Scale key) |
-| `get_korean_car` | Full detail for one listing (specs, options, photos, price history, seller; `lang`: en, ru or de) |
+| `get_korean_car` | Full detail for one listing (specs, options, photos, price history, seller, `diagnosisReport` on Encar listings; `lang`: en, ru or de) |
 | `get_korean_inspection` | Official Korean inspection report |
+| `get_korean_diagnosis` | Encar diagnosis (엔카진단): which outer panels were replaced, inspector verdict incl. frame result (Encar listings only) |
 | `get_korean_accident_record` | Insurance accident history and ownership changes |
 | `find_korean_models` | Model name autocomplete across brands |
 | `korean_filter_values` | Valid filter values |

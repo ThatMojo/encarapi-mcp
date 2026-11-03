@@ -27,6 +27,17 @@ const fakeFetch = async (url) => {
     return { status: 429, ok: false, text: async () => body };
   } else if (u.hostname === "api.chinacarapi.com") {
     payload = { total: 1, page: 1, limit: 10, results: [{ id: "9", source: "dongchedi", title: "BYD Han", make: { name: "BYD" }, price: { cny: 150000, eur: 18000 } }] };
+  } else if (u.pathname === "/api/diagnosis/41192872") {
+    payload = {
+      listingId: "41192872", vehicleId: 41192872, diagnosisDate: "2026-10-24T00:00:00", realDiagnosisDate: "2026-10-24T00:00:00",
+      items: [
+        { code: "006026", name: "HOOD", result: "교환", resultCode: "REPLACEMENT" },
+        { code: "006039", name: "CHECKER_COMMENT", result: "...", resultCode: null },
+      ],
+    };
+  } else if (u.pathname === "/api/diagnosis/42967176") {
+    const body = JSON.stringify({ error: "This listing has no Encar diagnosis.", diagnosisAvailable: false, listingStatus: "active", hint: "Encar has no diagnosis on record for this listing." });
+    return { status: 404, ok: false, text: async () => body };
   } else if (u.pathname.startsWith("/api/record/")) {
     return { status: 403, ok: false, text: async () => JSON.stringify({ error: "Upgrade to Business" }) };
   } else {
@@ -49,7 +60,7 @@ const { tools } = await client.listTools();
 const names = tools.map((t) => t.name).sort();
 assert.deepEqual(names, [
   "chinese_filter_values", "chinese_models", "find_korean_car_by_vin", "find_korean_models", "get_chinese_car", "get_chinese_car_by_url", "get_chinese_inspection", "get_chinese_specs", "get_korean_accident_record",
-  "get_korean_car", "get_korean_inspection", "get_korean_truck", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
+  "get_korean_car", "get_korean_diagnosis", "get_korean_inspection", "get_korean_truck", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
 ]);
 assert.ok(tools.every((t) => t.annotations?.readOnlyHint), "all tools are read-only");
 
@@ -71,6 +82,20 @@ await client.callTool({ name: "search_korean_cars", arguments: { manufacturer: "
 assert.equal(calls.at(-1).searchParams.get("lang"), "de");
 await client.callTool({ name: "get_korean_car", arguments: { id: "42524087", lang: "ru" } });
 assert.equal(calls.at(-1).searchParams.get("lang"), "ru");
+
+// Encar diagnosis: own tool, Encar id in the path; a 404 (no diagnosis) reaches the agent as a tool error with the API text
+const diag = await client.callTool({ name: "get_korean_diagnosis", arguments: { id: "41192872" } });
+assert.equal(calls.at(-1).hostname, "api.encarapi.com");
+assert.equal(calls.at(-1).pathname, "/api/diagnosis/41192872");
+const diagData = JSON.parse(diag.content[0].text);
+assert.deepEqual(diagData.items.filter((i) => i.resultCode === "REPLACEMENT").map((i) => i.name), ["HOOD"]);
+const noDiag = await client.callTool({ name: "get_korean_diagnosis", arguments: { id: "42967176" } });
+assert.equal(noDiag.isError, true);
+assert.match(noDiag.content[0].text, /404/);
+assert.match(noDiag.content[0].text, /no Encar diagnosis/);
+assert.match(noDiag.content[0].text, /"diagnosisAvailable":false/);
+assert.match(tools.find((t) => t.name === "get_korean_car").description, /diagnosisReport/);
+assert.match(tools.find((t) => t.name === "get_korean_diagnosis").description, /REPLACEMENT/);
 
 // China search goes to the China host with the same key
 const cn = await client.callTool({ name: "search_chinese_cars", arguments: { make: "BYD" } });
@@ -161,7 +186,7 @@ assert.match(cnClient.getInstructions(), /^Live used car listings from China/);
 assert.match(cnClient.getInstructions(), /chinese_filter_values/);
 const cnTools = (await cnClient.listTools()).tools.map((t) => t.name);
 assert.equal(cnTools[0], "search_chinese_cars");
-assert.equal(cnTools.length, 17);
+assert.equal(cnTools.length, 18);
 assert.equal(tools[0].name, "search_korean_cars");
 assert.equal(client.getServerVersion().name, "encarapi");
 

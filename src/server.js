@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.6.3";
+export const VERSION = "1.7.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -308,7 +308,9 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
       "get_korean_car",
       {
         title: "Get a Korean car",
-        description: "Full details for one Korean listing: specs, options, photos, price history, seller. Id: Encar id, 'kbc:<id>' or 'kcar:<id>'.",
+        description:
+          "Full details for one Korean listing: specs, options, photos, price history, seller. Id: Encar id, 'kbc:<id>' or 'kcar:<id>'. " +
+          "Encar listings also carry diagnosisReport: Encar's own outer-panel diagnosis (see get_korean_diagnosis), null when Encar has no diagnosis for the car.",
         inputSchema: {
           id: z.string().describe("Listing id from search_korean_cars"),
           lang: z.enum(["en", "ru", "de"]).optional().describe("Language of the spec, category and option names: en (default), ru = Russian, de = German"),
@@ -327,6 +329,24 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         annotations: readOnly,
       },
       run(({ id }) => needKorea().inspection(id))
+    );
+
+    server.registerTool(
+      "get_korean_diagnosis",
+      {
+        title: "Get an Encar diagnosis",
+        description:
+          "Encar's own body diagnosis (엔카진단) for one Encar listing, done at an Encar center: the 8 outer panels " +
+          "(doors, front fenders, hood, trunk lid; resultCode NORMAL or REPLACEMENT) plus the inspector's verdict " +
+          "CHECKER_COMMENT (also states the frame result; Encar does not diagnose cars with a damaged frame) and " +
+          "OUTER_PANEL_COMMENT, both Korean free text. About three in four active Encar listings have one; it is " +
+          "separate from the official inspection report. A 404 with diagnosisAvailable false means Encar has no " +
+          "diagnosis for the car, detailPending true means not collected yet. Encar ids only (no kbc:/kcar:). " +
+          "get_korean_car carries the same data as diagnosisReport.",
+        inputSchema: { id: z.string().describe("Encar listing id from search_korean_cars") },
+        annotations: readOnly,
+      },
+      run(({ id }) => needKorea().diagnosis(id))
     );
 
     server.registerTool(
