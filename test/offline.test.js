@@ -38,6 +38,21 @@ const fakeFetch = async (url) => {
   } else if (u.pathname === "/api/diagnosis/42967176") {
     const body = JSON.stringify({ error: "This listing has no Encar diagnosis.", diagnosisAvailable: false, listingStatus: "active", hint: "Encar has no diagnosis on record for this listing." });
     return { status: 404, ok: false, text: async () => body };
+  } else if (u.pathname === "/api/history/41483842") {
+    payload = {
+      listingId: "41483842", vehicleId: 41485538, collectedAt: "2026-11-04T10:00:00.000Z", listingStatus: "active",
+      eventCount: 2, summaryKo: "용도 변경 이력이 없는 차량이네요!",
+      mileageReadings: [{ date: "2025-11-03", mileageKm: 89119, source: "inspection" }],
+      ownershipPeriods: [{ from: "2023-08", to: null, region: "경기도 양주시", transferTypeKo: "매매업자 거래이전", drivenKm: 69482 }],
+      flags: { rental: false, commercial: false, government: false, totalLossFloodOrTheft: false, singleOwner: true, noOwnDamageInsurance: false, recallCount: 0 },
+      events: [
+        { type: "inspection", date: "2025-11-03", month: "2025-11", titleKo: "자동차 검사 완료", mileageKm: 89119, inspectionType: "periodic" },
+        { type: "insurance_claim", date: "2024-05", month: "2024-05", titleKo: "보험 수리", claimType: "own_damage", totalCostKrw: 1250000 },
+      ],
+    };
+  } else if (u.pathname === "/api/history/42967176") {
+    const body = JSON.stringify({ error: "This listing has no public vehicle history.", historyAvailable: false, listingStatus: "active", hint: "Encar shows no public history for this listing." });
+    return { status: 404, ok: false, text: async () => body };
   } else if (u.pathname.startsWith("/api/record/")) {
     return { status: 403, ok: false, text: async () => JSON.stringify({ error: "Upgrade to Business" }) };
   } else {
@@ -60,7 +75,7 @@ const { tools } = await client.listTools();
 const names = tools.map((t) => t.name).sort();
 assert.deepEqual(names, [
   "chinese_filter_values", "chinese_models", "find_korean_car_by_vin", "find_korean_models", "get_chinese_car", "get_chinese_car_by_url", "get_chinese_inspection", "get_chinese_specs", "get_korean_accident_record",
-  "get_korean_car", "get_korean_diagnosis", "get_korean_inspection", "get_korean_truck", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
+  "get_korean_car", "get_korean_diagnosis", "get_korean_history", "get_korean_inspection", "get_korean_truck", "korean_filter_values", "search_chinese_cars", "search_korean_cars", "search_korean_excavators", "search_korean_trucks",
 ]);
 assert.ok(tools.every((t) => t.annotations?.readOnlyHint), "all tools are read-only");
 
@@ -96,6 +111,20 @@ assert.match(noDiag.content[0].text, /no Encar diagnosis/);
 assert.match(noDiag.content[0].text, /"diagnosisAvailable":false/);
 assert.match(tools.find((t) => t.name === "get_korean_car").description, /diagnosisReport/);
 assert.match(tools.find((t) => t.name === "get_korean_diagnosis").description, /REPLACEMENT/);
+
+// Encar vehicle history: own tool, Encar id in the path; a 404 (no history) reaches the agent as a tool error with the API text
+const hist = await client.callTool({ name: "get_korean_history", arguments: { id: "41483842" } });
+assert.equal(calls.at(-1).hostname, "api.encarapi.com");
+assert.equal(calls.at(-1).pathname, "/api/history/41483842");
+const histData = JSON.parse(hist.content[0].text);
+assert.equal(histData.eventCount, 2);
+assert.deepEqual(histData.events.map((e) => e.type), ["inspection", "insurance_claim"]);
+const noHist = await client.callTool({ name: "get_korean_history", arguments: { id: "42967176" } });
+assert.equal(noHist.isError, true);
+assert.match(noHist.content[0].text, /404/);
+assert.match(noHist.content[0].text, /no public vehicle history/);
+assert.match(noHist.content[0].text, /"historyAvailable":false/);
+assert.match(tools.find((t) => t.name === "get_korean_history").description, /차량이력/);
 
 // China search goes to the China host with the same key
 const cn = await client.callTool({ name: "search_chinese_cars", arguments: { make: "BYD" } });
@@ -186,7 +215,7 @@ assert.match(cnClient.getInstructions(), /^Live used car listings from China/);
 assert.match(cnClient.getInstructions(), /chinese_filter_values/);
 const cnTools = (await cnClient.listTools()).tools.map((t) => t.name);
 assert.equal(cnTools[0], "search_chinese_cars");
-assert.equal(cnTools.length, 18);
+assert.equal(cnTools.length, 19);
 assert.equal(tools[0].name, "search_korean_cars");
 assert.equal(client.getServerVersion().name, "encarapi");
 

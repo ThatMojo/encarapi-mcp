@@ -21,6 +21,7 @@
 | `get_korean_car` | Full detail for one listing (specs, options, photos, price history, seller, `diagnosisReport` on Encar listings; `lang`: en, ru or de) |
 | `get_korean_inspection` | Official Korean inspection report |
 | `get_korean_diagnosis` | Encar diagnosis (엔카진단): which outer panels were replaced, inspector verdict incl. frame result (Encar listings only) |
+| `get_korean_history` | Encar vehicle history (차량이력): inspections, repairs, owner changes, insurance claims, recalls, odometer over time (Encar listings only) |
 | `get_korean_accident_record` | Insurance accident history and ownership changes |
 | `find_korean_models` | Model name autocomplete across brands |
 | `korean_filter_values` | Valid filter values |

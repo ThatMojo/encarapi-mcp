@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.7.0";
+export const VERSION = "1.8.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -347,6 +347,25 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         annotations: readOnly,
       },
       run(({ id }) => needKorea().diagnosis(id))
+    );
+
+    server.registerTool(
+      "get_korean_history",
+      {
+        title: "Get an Encar vehicle history",
+        description:
+          "Encar's vehicle history (차량이력) for one Encar listing: the timeline of inspections, repairs, owner " +
+          "changes, insurance claims and recalls, with every dated odometer reading (mileageReadings, oldest " +
+          "first - a reading lower than an earlier one is worth a closer look), ownership periods, summary flags " +
+          "and a Korean one-line summary (summaryKo). Encar collects it from the Ministry of Land, Infrastructure " +
+          "and Transport and the Korea Insurance Development Institute; about 8 in 10 Encar listings have one. " +
+          "Keys and enums are English, Korean source text stays in the *Ko fields. A 404 with historyAvailable " +
+          "false means Encar shows no public history for the listing, historyPending true means not collected " +
+          "yet. Encar ids only (no kbc:/kcar:). Separate from get_korean_inspection and get_korean_accident_record.",
+        inputSchema: { id: z.string().describe("Encar listing id from search_korean_cars") },
+        annotations: readOnly,
+      },
+      run(({ id }) => needKorea().history(id))
     );
 
     server.registerTool(
