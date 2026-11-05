@@ -324,8 +324,13 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
       "get_korean_inspection",
       {
         title: "Get a Korean inspection report",
-        description: "Official Korean inspection report (performance check) for one car: panels, frame, mechanical condition.",
-        inputSchema: { id: z.string() },
+        description:
+          "Official Korean inspection report (performance check) for one car: panels, frame, mechanical condition. " +
+          "Ids: an Encar id, or kbc:<id> for a KB Chachacha listing whose sheet we read (InspectionAvailable true in " +
+          "get_korean_car, about two in five KB Chachacha listings that link a sheet) - same format as Encar's plus a " +
+          "source block. Other kbc: ids return 404: detailPending true = sheet not read yet (retry later), " +
+          "inspectionAvailable false = no structured sheet (original link in inspectionReportUrl). K Car ids are not supported.",
+        inputSchema: { id: z.string().describe("Encar id, or kbc:<id> for a KB Chachacha listing") },
         annotations: readOnly,
       },
       run(({ id }) => needKorea().inspection(id))

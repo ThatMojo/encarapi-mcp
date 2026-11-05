@@ -125,6 +125,7 @@ assert.match(noHist.content[0].text, /404/);
 assert.match(noHist.content[0].text, /no public vehicle history/);
 assert.match(noHist.content[0].text, /"historyAvailable":false/);
 assert.match(tools.find((t) => t.name === "get_korean_history").description, /차량이력/);
+assert.match(tools.find((t) => t.name === "get_korean_inspection").description, /kbc:<id>/);
 
 // China search goes to the China host with the same key
 const cn = await client.callTool({ name: "search_chinese_cars", arguments: { make: "BYD" } });
