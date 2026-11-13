@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.9.0";
+export const VERSION = "1.10.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -503,6 +503,19 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         annotations: readOnly,
       },
       run(({ trimId }) => needChina().specs(trimId))
+    );
+
+    server.registerTool(
+      "chinese_spec_fields",
+      {
+        title: "Chinese specs field labels",
+        description:
+          "Field dictionary of the specs object in a get_chinese_car record: for every key (displacementCc, powerKw, transmissionType, ev.batteryKwh ...) " +
+          "the display label, unit, group and type. English by default, lang ru or zh for Russian or Chinese labels. Use it to explain or label specs values.",
+        inputSchema: { lang: chinaLang },
+        annotations: readOnly,
+      },
+      run(({ lang }) => needChina().specFields(lang ? { lang } : undefined))
     );
 
     server.registerTool(
