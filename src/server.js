@@ -4,7 +4,7 @@ import encarapi from "encarapi";
 
 const { KoreaClient, ChinaClient } = encarapi;
 
-export const VERSION = "1.8.1";
+export const VERSION = "1.9.0";
 const MAX_TEXT = 40000;
 
 const asText = (data) => {
@@ -92,7 +92,7 @@ const chinaLang = z
   );
 
 const chinaSource = z
-  .enum(["dongchedi", "che168"])
+  .enum(["dongchedi", "che168", "che168_domestic"])
   .optional()
   .describe("Marketplace of the id, from the search result; needed when an id exists on both");
 
@@ -422,7 +422,13 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
         inputSchema: {
           make: z.string().optional().describe("Brand in English, e.g. BYD, Toyota, Audi"),
           model: z.string().optional().describe("Model name or id from chinese_models"),
-          source: z.enum(["dongchedi", "che168"]).optional().describe("Marketplace; default both"),
+          source: z
+            .enum(["dongchedi", "che168", "che168_domestic"])
+            .optional()
+            .describe(
+              "Marketplace; default dongchedi and che168. che168_domestic = Che168 cars listed only on the domestic site che168.com, " +
+                "not in its export portal: only returned when chosen here, price is the dealer's CNY price as listed"
+            ),
           duplicates: z
             .enum(["include"])
             .optional()

@@ -165,6 +165,11 @@ assert.equal(badLang.isError, true, "de is Korea only");
 await client.callTool({ name: "get_chinese_car", arguments: { id: "123", source: "che168" } });
 assert.equal(calls.at(-1).pathname, "/api/vehicle/123");
 assert.equal(calls.at(-1).searchParams.get("source"), "che168");
+// Che168 cars only on the domestic site: own source value, passed through.
+await client.callTool({ name: "search_chinese_cars", arguments: { source: "che168_domestic", make: "BYD" } });
+assert.equal(calls.at(-1).searchParams.get("source"), "che168_domestic");
+await client.callTool({ name: "get_chinese_car", arguments: { id: "123", source: "che168_domestic" } });
+assert.equal(calls.at(-1).searchParams.get("source"), "che168_domestic");
 await client.callTool({ name: "get_chinese_inspection", arguments: { id: "123", source: "dongchedi" } });
 assert.equal(calls.at(-1).pathname, "/api/inspection/123");
 assert.equal(calls.at(-1).searchParams.get("source"), "dongchedi");
