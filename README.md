@@ -28,7 +28,7 @@
 | `search_chinese_cars` | Search Chinese listings (brand, model, model year, registration year, price in CNY, mileage, power, city, fuel, source incl. `che168_domestic` (Che168 cars only on the domestic site, on request), export-ready; `lang`: en, zh or ru) |
 | `get_chinese_car` | Full record for one Chinese listing (`lang`: en, zh or ru) |
 | `get_chinese_car_by_url` | Full record by Che168/Dongchedi listing link (desktop, mobile or app; `lang`: en, zh or ru) |
-| `get_chinese_inspection` | Chinese inspection report (accident, flood, fire, EV battery) |
+| `get_chinese_inspection` | Chinese inspection report (accident, flood, fire, EV battery); archived, so it stays available after the car is sold or removed (`firstSeenAt`, `lastSeenAt`) |
 | `get_chinese_specs` | Autohome specification sheet of a Che168 trim (cc, kW, hp, torque, emission standard, weights, EV battery) |
 | `chinese_spec_fields` | Label, unit and group for every key of a Chinese record's `specs` object, in English, Russian or Chinese |
 | `chinese_filter_values` | Valid makes, fuels, cities and sources with listing counts |

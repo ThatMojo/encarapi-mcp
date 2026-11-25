@@ -485,7 +485,11 @@ export function createServer({ apiKey, chinaKey, fetchImpl, transport = "stdio",
       "get_chinese_inspection",
       {
         title: "Get a Chinese inspection report",
-        description: "Inspection report for one Chinese car: accident, flood and fire checks, battery data for EVs.",
+        description:
+          "Inspection report for one Chinese car: accident, flood and fire checks, battery data for EVs. Reports are archived: " +
+          "a report stays available after the marketplace removes it or the car is sold. firstSeenAt = when the content was first " +
+          "stored (before 25 Nov 2026: date of its last read; null if not archived yet), lastSeenAt = when it was last read on the " +
+          "marketplace (re-read every 7 to 30 days).",
         inputSchema: { id: z.string(), source: chinaSource },
         annotations: readOnly,
       },
